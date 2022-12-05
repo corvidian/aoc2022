@@ -1,12 +1,19 @@
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::fs;
 
 pub fn read_input_lines() -> Vec<String> {
+    read_lines(get_filename())
+}
+
+pub fn read_input_string() -> String {
+    fs::read_to_string(get_filename()).expect("File not found!")
+}
+
+fn get_filename() -> String {
     use std::env;
-    let args = env::args().collect::<Vec<String>>();
-    let filename = args.get(1).map(|s| s.as_str()).unwrap_or("input.txt");
-    read_lines(filename)
+    env::args().nth(1).unwrap_or("input.txt".to_string())
 }
 
 fn read_lines<P>(filename: P) -> Vec<String>
@@ -14,7 +21,7 @@ where
     P: AsRef<Path>,
 {
     let file = File::open(filename).expect("File not found!");
-    io::BufReader::new(file)
+    BufReader::new(file)
         .lines()
         .map(|l| l.expect("Error reading line"))
         .collect()
