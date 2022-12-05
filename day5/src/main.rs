@@ -20,21 +20,20 @@ fn main() {
     println!("Part 2: {}", get_answer(&stacks2));
 }
 
-fn get_answer(stacks: &[Vec<char>]) -> String {
-    stacks.iter().map(|s| s.last().unwrap()).collect::<String>()
+fn get_answer(stacks: &[String]) -> String {
+    stacks
+        .iter()
+        .map(|s| s.chars().last().unwrap())
+        .collect::<String>()
 }
 
-fn do_command(stacks: &mut [Vec<char>], command: &(usize, usize, usize), part2: bool) {
-    let (amount, from, to) = command;
-    let mut items = (0..*amount)
-        .map(|_| stacks[*from - 1].pop().unwrap())
-        .collect::<Vec<_>>();
+fn do_command(stacks: &mut [String], command: &(usize, usize, usize), part2: bool) {
+    let (n, from, to) = command.to_owned();
+    let mut items: Vec<_> = (0..n).map(|_| stacks[from - 1].pop().unwrap()).collect();
     if part2 {
         items.reverse();
     }
-    for item in items {
-        stacks[*to - 1].push(item)
-    }
+    stacks[to - 1].push_str(&String::from_iter(items))
 }
 
 fn parse_command(line: &str) -> (usize, usize, usize) {
@@ -44,16 +43,15 @@ fn parse_command(line: &str) -> (usize, usize, usize) {
         .unwrap()
 }
 
-fn find_stacks(diagram: &str) -> Vec<Vec<char>> {
+fn find_stacks(diagram: &str) -> Vec<String> {
     let stack_count = diagram.lines().last().unwrap().split("  ").count();
 
-    let mut stacks = (0..stack_count).map(|_| vec![]).collect::<Vec<_>>();
+    let mut stacks = (0..stack_count).map(|_| "".to_string()).collect::<Vec<_>>();
 
     for line in diagram.lines().rev().skip(1) {
-        for (x, stack) in stacks.iter_mut().enumerate() {
-            let char = line.chars().nth(x * 4 + 1).unwrap();
-            if char.is_alphabetic() {
-                stack.push(char)
+        for (i, c) in line.chars().enumerate() {
+            if c.is_alphabetic() {
+                stacks[(i - 1) / 4].push(c);
             }
         }
     }
