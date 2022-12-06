@@ -11,6 +11,12 @@ pub fn read_input_string() -> String {
     fs::read_to_string(get_filename()).expect("File not found!")
 }
 
+pub fn read_and_split(pattern: &str) -> (String, String) {
+    let input = read_input_string();
+    let a = input.split_once(pattern).expect("Split pattern not found");
+    (a.0.to_owned(), a.1.to_owned())
+}
+
 fn get_filename() -> String {
     use std::env;
     env::args().nth(1).unwrap_or("input.txt".to_string())
