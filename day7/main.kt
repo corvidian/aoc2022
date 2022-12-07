@@ -1,5 +1,3 @@
-package fi.hel.haitaton.hanke
-
 import java.io.File
 import java.util.Stack
 
