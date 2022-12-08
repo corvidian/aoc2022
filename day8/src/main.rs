@@ -1,3 +1,6 @@
+use itertools::Itertools;
+use take_until::TakeUntilExt;
+
 fn main() {
     let lines = aoc::read_input_lines();
     let width = lines[0].len();
@@ -13,82 +16,39 @@ fn main() {
         .collect::<Vec<_>>();
 
     visualize_height(&height_map);
-    println!();
 
-    part1(height, width, &height_map);
-    part2(height, width, &height_map);
+    let part1 = part1(height, width, &height_map);
+    let part2 = part2(height, width, &height_map);
+    println!("Part 1: {part1}");
+    println!("Part 2: {part2}");
 }
 
-fn part2(height: usize, width: usize, height_map: &[Vec<u8>]) {
-    let mut prettiest: u32 =0;
-    for j in 1..height - 1 {
-        for i in 1..width - 1 {
+fn check_visibility<'a, I, F>(selected: &u8, indexes: I, value: F) -> usize
+where
+    I: Iterator<Item = usize>,
+    F: Fn(usize) -> &'a u8,
+{
+    indexes.take_until(|&x| value(x) >= selected).count()
+}
+
+fn part2(height: usize, width: usize, height_map: &[Vec<u8>]) -> usize {
+    (1..height - 1)
+        .cartesian_product(1..width - 1)
+        .map(|(j, i)| {
             let selected = height_map[j][i];
-            println!("Looking at [{j}][{i}] = {}", selected);
 
-            let mut x = i + 1;
-            let mut counter_right = 0;
-            while x < width && height_map[j][x] < selected {
-                println!("{} {} {} {}", height_map[j][x], selected, x, width);
-                counter_right += 1;
-                x += 1;
-            }
-            if x < width {
-                counter_right += 1
-            }
-            println!("to the right: {counter_right}");
+            let counter_right = check_visibility(&selected, (i + 1)..width, |x| &height_map[j][x]);
+            let counter_left = check_visibility(&selected, (0..i).rev(), |x| &height_map[j][x]);
+            let counter_down = check_visibility(&selected, (j + 1)..height, |y| &height_map[y][i]);
+            let counter_up = check_visibility(&selected, (0..j).rev(), |y| &height_map[y][i]);
 
-            x = i - 1;
-            let mut counter_left = 0;
-            while height_map[j][x] < selected {
-                println!("{} {} {} {}", height_map[j][x], selected, x, width);
-                counter_left += 1;
-                if x == 0 {
-                    break;
-                }
-                x -= 1;
-            }
-            if x > 0 {
-                counter_left += 1
-            }
-            println!("to the left: {counter_left}");
-
-            let mut y = j + 1;
-            let mut counter_down = 0;
-            while y < height && height_map[y][i] < selected {
-                println!("{} {} {} {}", height_map[y][i], selected, y, height);
-                counter_down += 1;
-                y += 1;
-            }
-            if y < height {
-                counter_down += 1
-            }
-            println!("down: {counter_down}");
-
-            y = j - 1;
-            let mut counter_up = 0;
-            while height_map[y][i] < selected {
-                println!("{} {} {} {}", height_map[y][i], selected, y, height);
-                counter_up += 1;
-                if y == 0 {
-                    break;
-                }
-                y -= 1;
-            }
-            if y > 0 {
-                counter_up += 1
-            }
-            println!("up: {counter_up}");
-
-            let score = counter_down * counter_right * counter_up * counter_left;
-            println!("score: {score}");
-            if prettiest < score {prettiest = score}
-        }
-    }
-    println!("Part 2: {prettiest}")
+            counter_down * counter_right * counter_up * counter_left
+        })
+        .max()
+        .unwrap()
 }
 
-fn part1(height: usize, width: usize, height_map: &[Vec<u8>]) {
+fn part1(height: usize, width: usize, height_map: &[Vec<u8>]) -> u32 {
     let mut visible_map: Vec<Vec<bool>> = vec![vec![false; width]; height];
 
     for i in 0..width {
@@ -96,9 +56,9 @@ fn part1(height: usize, width: usize, height_map: &[Vec<u8>]) {
         visible_map[height - 1][i] = true;
     }
 
-    for i in 0..height {
-        visible_map[i][0] = true;
-        visible_map[i][width - 1] = true;
+    for line in visible_map.iter_mut() {
+        line[0] = true;
+        line[width - 1] = true;
     }
 
     let mut highest;
@@ -146,11 +106,10 @@ fn part1(height: usize, width: usize, height_map: &[Vec<u8>]) {
     visualize_visibility(&visible_map);
     println!();
 
-    let part1: u32 = visible_map
+    visible_map
         .iter()
         .map(|line| line.iter().map(|c| u32::from(*c)).sum::<u32>())
-        .sum();
-    println!("Part1: {part1}");
+        .sum()
 }
 
 fn visualize_visibility(map: &[Vec<bool>]) {
@@ -165,7 +124,8 @@ fn draw_line_visibility(line: &[bool]) {
 }
 
 fn visualize_height(map: &[Vec<u8>]) {
-    map.iter().for_each(|line| draw_line_height(line))
+    map.iter().for_each(|line| draw_line_height(line));
+    println!()
 }
 
 fn draw_line_height(line: &[u8]) {
