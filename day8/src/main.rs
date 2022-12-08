@@ -1,29 +1,131 @@
 use itertools::Itertools;
 use take_until::TakeUntilExt;
 
+trait Visualizable {
+    fn get(&self, y: usize, x: usize) -> u8;
+    fn height(&self) -> usize;
+    fn width(&self) -> usize;
+
+    fn visualize(&self) {
+        for y in 0..self.height() {
+            for x in 0..self.width() {
+                print!("{}", self.get(x, y));
+            }
+            println!();
+        }
+        println!();
+    }
+}
+
+struct HeightMap {
+    height: usize,
+    width: usize,
+    map: Vec<u8>,
+}
+
+impl HeightMap {
+    fn new(lines: Vec<String>) -> HeightMap {
+        let height = lines.len();
+        let width = lines[0].len();
+        let mut this = HeightMap {
+            height,
+            width,
+            map: vec![0; height * width],
+        };
+
+        for (y, line) in lines.iter().enumerate().take(height) {
+            for (x, char) in line.chars().enumerate() {
+                this.set(y, x, char.to_digit(10).unwrap() as u8)
+            }
+        }
+
+        this
+    }
+
+    fn get(&self, y: usize, x: usize) -> &u8 {
+        &self.map[y * self.width + x]
+    }
+
+    fn set(&mut self, y: usize, x: usize, value: u8) {
+        self.map[y * self.width + x] = value;
+    }
+}
+
+impl Visualizable for HeightMap {
+    fn get(&self, y: usize, x: usize) -> u8 {
+        self.map[y * self.width + x]
+    }
+
+    fn height(&self) -> usize {
+        self.height
+    }
+
+    fn width(&self) -> usize {
+        self.width
+    }
+}
+
+struct VisibilityMap {
+    height: usize,
+    width: usize,
+    map: Vec<bool>,
+}
+
+impl VisibilityMap {
+    fn new(height: usize, width: usize) -> VisibilityMap {
+        let mut this = VisibilityMap {
+            height,
+            width,
+            map: vec![false; height * width],
+        };
+
+        for x in 0..width {
+            this.set(0, x);
+            this.set(height - 1, x);
+        }
+
+        for y in 0..height {
+            this.set(y, 0);
+            this.set(y, width - 1);
+        }
+
+        this
+    }
+
+    fn set(&mut self, y: usize, x: usize) {
+        self.map[y * self.width + x] = true;
+    }
+
+    fn count(&self) -> u32 {
+        self.map.iter().map(|b| u32::from(*b)).sum()
+    }
+}
+
+impl Visualizable for VisibilityMap {
+    fn get(&self, y: usize, x: usize) -> u8 {
+        u8::from(self.map[y * self.width + x])
+    }
+
+    fn height(&self) -> usize {
+        self.height
+    }
+
+    fn width(&self) -> usize {
+        self.width
+    }
+}
+
 fn main() {
-    let lines = aoc::read_input_lines();
-    let width = lines[0].len();
-    let height = lines.len();
+    let height_map = HeightMap::new(aoc::read_input_lines());
+    height_map.visualize();
 
-    let height_map: Vec<Vec<u8>> = lines
-        .iter()
-        .map(|line| {
-            line.chars()
-                .map(|c| c.to_digit(10).unwrap() as u8)
-                .collect::<Vec<u8>>()
-        })
-        .collect::<Vec<_>>();
-
-    visualize_height(&height_map);
-
-    let part1 = part1(height, width, &height_map);
-    let part2 = part2(height, width, &height_map);
+    let part1 = part1(&height_map);
+    let part2 = part2(&height_map);
     println!("Part 1: {part1}");
     println!("Part 2: {part2}");
 }
 
-fn check_visibility<'a, I, F>(selected: &u8, indexes: I, value: F) -> usize
+fn visibility<'a, I, F>(selected: &u8, indexes: I, value: F) -> usize
 where
     I: Iterator<Item = usize>,
     F: Fn(usize) -> &'a u8,
@@ -31,16 +133,18 @@ where
     indexes.take_until(|&x| value(x) >= selected).count()
 }
 
-fn part2(height: usize, width: usize, height_map: &[Vec<u8>]) -> usize {
+fn part2(height_map: &HeightMap) -> usize {
+    let (height, width) = (height_map.height, height_map.width);
+
     (1..height - 1)
         .cartesian_product(1..width - 1)
         .map(|(j, i)| {
-            let selected = height_map[j][i];
+            let selected = height_map.get(j, i);
 
-            let counter_right = check_visibility(&selected, (i + 1)..width, |x| &height_map[j][x]);
-            let counter_left = check_visibility(&selected, (0..i).rev(), |x| &height_map[j][x]);
-            let counter_down = check_visibility(&selected, (j + 1)..height, |y| &height_map[y][i]);
-            let counter_up = check_visibility(&selected, (0..j).rev(), |y| &height_map[y][i]);
+            let counter_right = visibility(selected, (i + 1)..width, |x| height_map.get(j, x));
+            let counter_left = visibility(selected, (0..i).rev(), |x| height_map.get(j, x));
+            let counter_down = visibility(selected, (j + 1)..height, |y| height_map.get(y, i));
+            let counter_up = visibility(selected, (0..j).rev(), |y| height_map.get(y, i));
 
             counter_down * counter_right * counter_up * counter_left
         })
@@ -48,87 +152,52 @@ fn part2(height: usize, width: usize, height_map: &[Vec<u8>]) -> usize {
         .unwrap()
 }
 
-fn part1(height: usize, width: usize, height_map: &[Vec<u8>]) -> u32 {
-    let mut visible_map: Vec<Vec<bool>> = vec![vec![false; width]; height];
-
-    for i in 0..width {
-        visible_map[0][i] = true;
-        visible_map[height - 1][i] = true;
-    }
-
-    for line in visible_map.iter_mut() {
-        line[0] = true;
-        line[width - 1] = true;
-    }
-
-    let mut highest;
+fn part1(height_map: &HeightMap) -> u32 {
+    let (height, width) = (height_map.height, height_map.width);
+    let mut visible_map = VisibilityMap::new(height, width);
 
     for y in 1..height - 1 {
-        highest = height_map[y][0];
+        let mut highest = *height_map.get(y, 0);
         for x in 1..width - 1 {
-            if height_map[y][x] > highest {
-                highest = height_map[y][x];
-                visible_map[y][x] = true;
-            }
+            fun_name(height_map, y, x, &mut highest, &mut visible_map);
         }
     }
 
     for y in 1..height - 1 {
-        highest = height_map[y][width - 1];
-        for x in 2..width {
-            if height_map[y][width - x] > highest {
-                highest = height_map[y][width - x];
-                visible_map[y][width - x] = true;
-            }
+        let mut highest = *height_map.get(y, width - 1);
+        for x in (1..width - 1).rev() {
+            fun_name(height_map, y, x, &mut highest, &mut visible_map);
         }
     }
 
     for x in 1..width - 1 {
-        highest = height_map[0][x];
+        let mut highest = *height_map.get(0, x);
         for y in 1..height - 1 {
-            if height_map[y][x] > highest {
-                highest = height_map[y][x];
-                visible_map[y][x] = true;
-            }
+            fun_name(height_map, y, x, &mut highest, &mut visible_map);
         }
     }
 
     for x in 1..width - 1 {
-        highest = height_map[height - 1][x];
-        for y in 2..height {
-            if height_map[height - y][x] > highest {
-                highest = height_map[height - y][x];
-                visible_map[height - y][x] = true;
-            }
+        let mut highest = *height_map.get(height - 1, x);
+        for y in (1..height - 1).rev() {
+            fun_name(height_map, y, x, &mut highest, &mut visible_map);
         }
     }
 
-    visualize_visibility(&visible_map);
-    println!();
+    visible_map.visualize();
 
-    visible_map
-        .iter()
-        .map(|line| line.iter().map(|c| u32::from(*c)).sum::<u32>())
-        .sum()
+    visible_map.count()
 }
 
-fn visualize_visibility(map: &[Vec<bool>]) {
-    map.iter().for_each(|line| draw_line_visibility(line))
-}
-
-fn draw_line_visibility(line: &[bool]) {
-    line.iter().for_each(|c| {
-        print!("{}", u32::from(*c));
-    });
-    println!()
-}
-
-fn visualize_height(map: &[Vec<u8>]) {
-    map.iter().for_each(|line| draw_line_height(line));
-    println!()
-}
-
-fn draw_line_height(line: &[u8]) {
-    line.iter().for_each(|c| print!("{c}"));
-    println!()
+fn fun_name(
+    height_map: &HeightMap,
+    y: usize,
+    x: usize,
+    highest: &mut u8,
+    visible_map: &mut VisibilityMap,
+) {
+    if height_map.get(y, x) > highest {
+        *highest = *height_map.get(y, x);
+        visible_map.set(x, y);
+    }
 }
