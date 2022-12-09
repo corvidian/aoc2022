@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::{collections::HashSet, hash::Hash};
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 struct Position(i32, i32);
 
 impl Debug for Position {
@@ -11,24 +11,37 @@ impl Debug for Position {
     }
 }
 
+const fn new_pos() -> Position {
+    Position(0, 0)
+}
+
 fn main() {
-    let mut head = Position(0, 0);
-    let mut tail = [Position(0, 0); 9];
+    const NEW_POS: Position = new_pos();
+
+    let input = aoc::read_input_lines();
+    let mut head = new_pos();
+    let mut tail = [NEW_POS; 1];
     let mut visited: HashSet<Position> = HashSet::new();
-    visited.insert(tail[8].clone());
-    aoc::read_input_lines()
+    input
         .iter()
         .for_each(|line| instruction(line, &mut head, &mut tail, &mut visited));
 
-    println!("{visited:?}");
-
     println!("Part 1: {}", visited.len());
+
+    head = new_pos();
+    let mut tail = [NEW_POS; 9];
+    visited.clear();
+    input
+        .iter()
+        .for_each(|line| instruction(line, &mut head, &mut tail, &mut visited));
+
+    println!("Part 2: {}", visited.len());
 }
 
-fn instruction(
+fn instruction<const N: usize>(
     instruction: &str,
     head: &mut Position,
-    tail: &mut [Position; 9],
+    tail: &mut [Position; N],
     visited: &mut HashSet<Position>,
 ) {
     let direction = instruction.chars().next().unwrap();
@@ -48,23 +61,21 @@ fn instruction(
     (0..amount).for_each(|_| movement(&delta, head, tail, visited));
 }
 
-fn movement(
+fn movement<const N: usize>(
     delta: &Position,
     head: &mut Position,
-    tail: &mut [Position; 9],
+    tail: &mut [Position; N],
     visited: &mut HashSet<Position>,
 ) {
-    head.0 = head.0 + delta.0;
-    head.1 = head.1 + delta.1;
+    head.0 += delta.0;
+    head.1 += delta.1;
 
     move_tail(head, &mut tail[0]);
-    for i in 1..9 {
+    for i in 1..N {
         move_tail(&tail[i - 1].clone(), &mut tail[i]);
     }
 
-    println!("head: {head:?} tail: {tail:?}");
-
-    visited.insert(tail[8].clone());
+    visited.insert(tail[N - 1].clone());
 }
 
 fn move_tail(head: &Position, tail: &mut Position) {
