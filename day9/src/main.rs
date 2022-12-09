@@ -11,37 +11,28 @@ impl Debug for Position {
     }
 }
 
-const fn new_pos() -> Position {
-    Position(0, 0)
-}
-
 fn main() {
-    const NEW_POS: Position = new_pos();
-
     let input = aoc::read_input_lines();
-    let mut head = new_pos();
-    let mut tail = [NEW_POS; 1];
+    let mut rope = [Position; 2].map(|_| Position(0,0));
     let mut visited: HashSet<Position> = HashSet::new();
     input
         .iter()
-        .for_each(|line| instruction(line, &mut head, &mut tail, &mut visited));
+        .for_each(|line| instruction(line, &mut rope, &mut visited));
 
     println!("Part 1: {}", visited.len());
 
-    head = new_pos();
-    let mut tail = [NEW_POS; 9];
+    let mut rope = [Position; 10].map(|_| Position(0,0));
     visited.clear();
     input
         .iter()
-        .for_each(|line| instruction(line, &mut head, &mut tail, &mut visited));
+        .for_each(|line| instruction(line, &mut rope, &mut visited));
 
     println!("Part 2: {}", visited.len());
 }
 
 fn instruction<const N: usize>(
     instruction: &str,
-    head: &mut Position,
-    tail: &mut [Position; N],
+    rope: &mut [Position; N],
     visited: &mut HashSet<Position>,
 ) {
     let direction = instruction.chars().next().unwrap();
@@ -58,38 +49,36 @@ fn instruction<const N: usize>(
         .1
         .parse()
         .expect("Invalid move amount");
-    (0..amount).for_each(|_| movement(&delta, head, tail, visited));
+    (0..amount).for_each(|_| movement(&delta, rope, visited));
 }
 
 fn movement<const N: usize>(
     delta: &Position,
-    head: &mut Position,
-    tail: &mut [Position; N],
+    rope: &mut [Position; N],
     visited: &mut HashSet<Position>,
 ) {
-    head.0 += delta.0;
-    head.1 += delta.1;
+    rope[0].0 += delta.0;
+    rope[0].1 += delta.1;
 
-    move_tail(head, &mut tail[0]);
     for i in 1..N {
-        move_tail(&tail[i - 1].clone(), &mut tail[i]);
+        move_rope(&rope[i - 1].clone(), &mut rope[i]);
     }
 
-    visited.insert(tail[N - 1].clone());
+    visited.insert(rope[N - 1].clone());
 }
 
-fn move_tail(head: &Position, tail: &mut Position) {
-    if (head.0 - tail.0).abs() > 1 || (head.1 - tail.1).abs() > 1 {
-        match head.0.cmp(&tail.0) {
-            Ordering::Less => tail.0 -= 1,
-            Ordering::Greater => tail.0 += 1,
-            Ordering::Equal => tail.0 += 0,
+fn move_rope(head: &Position, rope: &mut Position) {
+    if (head.0 - rope.0).abs() > 1 || (head.1 - rope.1).abs() > 1 {
+        match head.0.cmp(&rope.0) {
+            Ordering::Less => rope.0 -= 1,
+            Ordering::Greater => rope.0 += 1,
+            Ordering::Equal => rope.0 += 0,
         }
 
-        match head.1.cmp(&tail.1) {
-            Ordering::Less => tail.1 -= 1,
-            Ordering::Greater => tail.1 += 1,
-            Ordering::Equal => tail.1 += 0,
+        match head.1.cmp(&rope.1) {
+            Ordering::Less => rope.1 -= 1,
+            Ordering::Greater => rope.1 += 1,
+            Ordering::Equal => rope.1 += 0,
         }
     }
 }
