@@ -1,19 +1,10 @@
-use std::cmp::Ordering;
-use std::fmt::Debug;
-use std::{collections::HashSet, hash::Hash};
+use std::collections::HashSet;
 
-#[derive(PartialEq, Eq, Hash, Clone)]
-struct Position(i32, i32);
-
-impl Debug for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}, {}]", &self.0, &self.1)
-    }
-}
+type Position = (i32, i32);
 
 fn main() {
     let input = aoc::read_input_lines();
-    let mut rope = [Position; 2].map(|_| Position(0,0));
+    let mut rope = [(0, 0); 2];
     let mut visited: HashSet<Position> = HashSet::new();
     input
         .iter()
@@ -21,7 +12,7 @@ fn main() {
 
     println!("Part 1: {}", visited.len());
 
-    let mut rope = [Position; 10].map(|_| Position(0,0));
+    let mut rope = [(0, 0); 10];
     visited.clear();
     input
         .iter()
@@ -37,10 +28,10 @@ fn instruction<const N: usize>(
 ) {
     let direction = instruction.chars().next().unwrap();
     let delta = match direction {
-        'R' => Position(1, 0),
-        'L' => Position(-1, 0),
-        'U' => Position(0, 1),
-        'D' => Position(0, -1),
+        'R' => (1, 0),
+        'L' => (-1, 0),
+        'U' => (0, 1),
+        'D' => (0, -1),
         _ => panic!("Invalid instruction"),
     };
     let amount: usize = instruction
@@ -61,24 +52,44 @@ fn movement<const N: usize>(
     rope[0].1 += delta.1;
 
     for i in 1..N {
-        move_rope(&rope[i - 1].clone(), &mut rope[i]);
+        let head = rope[i - 1];
+        move_rope(&head, &mut rope[i]);
     }
 
-    visited.insert(rope[N - 1].clone());
+    //println!("{rope:?}");
+
+    visited.insert(rope[N - 1]);
 }
 
-fn move_rope(head: &Position, rope: &mut Position) {
-    if (head.0 - rope.0).abs() > 1 || (head.1 - rope.1).abs() > 1 {
-        match head.0.cmp(&rope.0) {
-            Ordering::Less => rope.0 -= 1,
-            Ordering::Greater => rope.0 += 1,
-            Ordering::Equal => rope.0 += 0,
-        }
+fn move_rope(head: &Position, next: &mut Position) {
+    if (head.0 - next.0).abs() > 1 || (head.1 - next.1).abs() > 1 {
+        next.0 += (head.0 - next.0).signum();
+        next.1 += (head.1 - next.1).signum();
+    }
+}
 
-        match head.1.cmp(&rope.1) {
-            Ordering::Less => rope.1 -= 1,
-            Ordering::Greater => rope.1 += 1,
-            Ordering::Equal => rope.1 += 0,
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+
+    #[rstest]
+    #[case((0,0),(0,0),(0,0))]
+    #[case((1,1),(0,0),(0,0))]
+    #[case((2,0),(0,0),(1,0))]
+    #[case((0,2),(0,0),(0,1))]
+    #[case((-2,0),(0,0),(-1,0))]
+    #[case((0,-2),(0,0),(0,-1))]
+    #[case((2,1),(0,0),(1,1))]
+    #[case((1,2),(0,0),(1,1))]
+    #[case((-2,-1),(0,0),(-1,-1))]
+    #[case((-1,-2),(0,0),(-1,-1))]
+    #[case((6,5),(4,4),(5,5))]
+    fn test_move_rope(#[case] head: Position, #[case] next: Position, #[case] expected: Position) {
+        let mut next = next;
+
+        move_rope(&head, &mut next);
+
+        assert_eq!(next, expected);
     }
 }
