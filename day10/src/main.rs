@@ -2,13 +2,13 @@ fn main() {
     let mut cycles = 0u32;
     let mut x = 1i32;
     let mut sum = 0i32;
-    
+
     let input = aoc::read_input_lines();
     let mut iter = input.iter();
     while let Some(line) = iter.next() {
         if line == "noop" {
             cycle(&mut cycles, &x, &mut sum);
-        } else if line.starts_with("addx"){
+        } else if line.starts_with("addx") {
             cycle(&mut cycles, &x, &mut sum);
             cycle(&mut cycles, &x, &mut sum);
             let operand = line.split(' ').last().unwrap().parse::<i32>().unwrap();
@@ -22,9 +22,18 @@ fn main() {
 }
 
 fn cycle(cycles: &mut u32, x: &i32, sum: &mut i32) {
+    let pixel = ((*cycles) % 40) as i32;
+    if (pixel - *x).abs() <= 1 {
+        print!("#")
+    } else {
+        print!(".");
+    }
+
     *cycles += 1;
-    if (*cycles + 20) % 40 == 0  {
-        println!("{cycles} {x}");
+    if *cycles % 40 == 0 {
+        println!()
+    }
+    if (*cycles + 20) % 40 == 0 {
         *sum += *cycles as i32 * *x;
     }
 }
