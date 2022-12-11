@@ -1,115 +1,123 @@
 use std::collections::VecDeque;
 
+#[derive(Debug)]
 struct Monkey {
     items: VecDeque<u64>,
-    operation: Box<dyn Fn(u64) -> u64>,
+    operation: Operation,
     test: u64,
     if_true: usize,
     if_false: usize,
     inspections: u64,
 }
 
+impl Monkey {
+    fn parse(lines: &[String], i: usize) -> Monkey {
+        let a: [&str; 2] = lines[7 * i + 2]
+            .trim()
+            .split(' ')
+            .skip(4)
+            .take(2)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        let operation = match a {
+            ["*", "old"] => Operation::Square,
+            ["*", a] => Operation::Multiply(a.parse().unwrap()),
+            ["+", a] => Operation::Add(a.parse().unwrap()),
+            [a, b] => panic!("Odd operation {a} {b}"),
+        };
+
+        let items = lines[7 * i + 1]
+            .split(&[',', ' '])
+            .into_iter()
+            .filter_map(|part| part.parse::<u64>().ok())
+            .collect::<VecDeque<_>>();
+
+        let test = lines[7 * i + 3]
+            .split(' ')
+            .last()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap();
+
+        let if_true = lines[7 * i + 4]
+            .split(' ')
+            .last()
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+
+        let if_false = lines[7 * i + 5]
+            .split(' ')
+            .last()
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+
+        Monkey {
+            items,
+            operation,
+            test,
+            if_true,
+            if_false,
+            inspections: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Operation {
+    Add(u64),
+    Multiply(u64),
+    Square,
+}
+
+impl Operation {
+    fn calc(&self, old: u64) -> u64 {
+        match self {
+            Operation::Add(x) => old + x,
+            Operation::Multiply(x) => old * x,
+            Operation::Square => old * old,
+        }
+    }
+}
+
 const N: usize = 8;
 
 fn main() {
-    let monkey0 = Monkey {
-        items: VecDeque::from(vec![65, 78]),
-        operation: Box::new(|old| old * 3),
-        test: 5,
-        if_true: 2,
-        if_false: 3,
-        inspections: 0,
-    };
-    let monkey1 = Monkey {
-        items: VecDeque::from(vec![54, 78, 86, 79, 73, 64, 85, 88]),
-        operation: Box::new(|old| old + 8),
-        test: 11,
-        if_true: 4,
-        if_false: 7,
-        inspections: 0,
-    };
-    let monkey2 = Monkey {
-        items: VecDeque::from(vec![69, 97, 77, 88, 87]),
-        operation: Box::new(|old| old + 2),
-        test: 2,
-        if_true: 5,
-        if_false: 3,
-        inspections: 0,
-    };
-    let monkey3 = Monkey {
-        items: VecDeque::from(vec![99]),
-        operation: Box::new(|old| old + 4),
-        test: 13,
-        if_true: 1,
-        if_false: 5,
-        inspections: 0,
-    };
-    let monkey4 = Monkey {
-        items: VecDeque::from(vec![60, 57, 52]),
-        operation: Box::new(|old| old * 19),
-        test: 7,
-        if_true: 7,
-        if_false: 6,
-        inspections: 0,
-    };
-    let monkey5 = Monkey {
-        items: VecDeque::from(vec![91, 82, 85, 73, 84, 53]),
-        operation: Box::new(|old| old + 5),
-        test: 3,
-        if_true: 4,
-        if_false: 1,
-        inspections: 0,
-    };
-    let monkey6 = Monkey {
-        items: VecDeque::from(vec![88, 74, 68, 56]),
-        operation: Box::new(|old| old * old),
-        test: 17,
-        if_true: 0,
-        if_false: 2,
-        inspections: 0,
-    };
-    let monkey7 = Monkey {
-        items: VecDeque::from(vec![54, 82, 72, 71, 53, 99, 67]),
-        operation: Box::new(|old| old + 1),
-        test: 19,
-        if_true: 6,
-        if_false: 0,
-        inspections: 0,
-    };
+    let input = aoc::read_input_lines();
 
-    let mut monkeys = [
-        monkey0, monkey1, monkey2, monkey3, monkey4, monkey5, monkey6, monkey7,
-    ];
+    let mut troop: [Monkey; N] = (0..8)
+        .map(|i| Monkey::parse(&input, i))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
-    let cap = monkeys
+    let cap = troop
         .iter()
         .map(|monkey| monkey.test)
-        .fold(1, |acc, x| acc * x);
-    println!("Cap: {cap}");
+        .product();
 
-    (0..10000).for_each(|round| {
-        (0..N).for_each(|i| turn(&mut monkeys, i, cap));
-        println!("Round {round}");
-        //(0..N).for_each(|i| println!("{:?}", monkeys[i].items));
-        //(0..N).for_each(|i| println!("{:?}", monkeys[i].inspections));
+    (0..10000).for_each(|_| {
+        (0..N).for_each(|i| turn(&mut troop, i, cap));
     });
-    monkeys.sort_by_key(|monkey| monkey.inspections);
+    troop.sort_by_key(|monkey| monkey.inspections);
     println!(
-        "Part 1: {}",
-        monkeys[N - 2].inspections * monkeys[N - 1].inspections
+        "Result: {}",
+        troop[N - 2].inspections * troop[N - 1].inspections
     );
 }
 
-fn turn(monkeys: &mut [Monkey; N], i: usize, cap: u64) {
-    while let Some(item) = monkeys[i].items.pop_front() {
-        monkeys[i].inspections += 1;
-        let (value, next_monkey) = inspection(item, &monkeys[i], cap);
-        monkeys[next_monkey].items.push_back(value);
+fn turn(troop: &mut [Monkey; N], i: usize, cap: u64) {
+    while let Some(item) = troop[i].items.pop_front() {
+        troop[i].inspections += 1;
+        let (value, next_monkey) = inspection(item, &troop[i], cap);
+        troop[next_monkey].items.push_back(value);
     }
 }
 
 fn inspection(item: u64, monkey: &Monkey, cap: u64) -> (u64, usize) {
-    let result = (monkey.operation)(item) % cap;
+    let result = monkey.operation.calc(item) % cap;
     if result % monkey.test == 0 {
         (result, monkey.if_true)
     } else {
@@ -117,9 +125,9 @@ fn inspection(item: u64, monkey: &Monkey, cap: u64) -> (u64, usize) {
     }
 }
 
-fn inspection_part1(item: u64, monkey: &Monkey) -> (u64, usize) {
-    let mut result = (monkey.operation)(item);
-    result = result / 3;
+fn _inspection_part1(item: u64, monkey: &Monkey) -> (u64, usize) {
+    let mut result = monkey.operation.calc(item);
+    result /= 3;
     if result % monkey.test == 0 {
         (result, monkey.if_true)
     } else {
