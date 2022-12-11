@@ -1,38 +1,12 @@
 use std::collections::VecDeque;
 
-//#[derive (Debug)]
 struct Monkey {
     items: VecDeque<u64>,
-    operation: &'static dyn Fn(u64) -> u64,
+    operation: Box<dyn Fn(u64) -> u64>,
     test: u64,
     if_true: usize,
     if_false: usize,
     inspections: u64,
-}
-
-fn monkey0_op(old: u64) -> u64 {
-    old * 3
-}
-fn monkey1_op(old: u64) -> u64 {
-    old + 8
-}
-fn monkey2_op(old: u64) -> u64 {
-    old + 2
-}
-fn monkey3_op(old: u64) -> u64 {
-    old + 4
-}
-fn monkey4_op(old: u64) -> u64 {
-    old * 19
-}
-fn monkey5_op(old: u64) -> u64 {
-    old + 5
-}
-fn monkey6_op(old: u64) -> u64 {
-    old * old
-}
-fn monkey7_op(old: u64) -> u64 {
-    old + 1
 }
 
 const N: usize = 8;
@@ -40,7 +14,7 @@ const N: usize = 8;
 fn main() {
     let monkey0 = Monkey {
         items: VecDeque::from(vec![65, 78]),
-        operation: &monkey0_op,
+        operation: Box::new(|old| old * 3),
         test: 5,
         if_true: 2,
         if_false: 3,
@@ -48,7 +22,7 @@ fn main() {
     };
     let monkey1 = Monkey {
         items: VecDeque::from(vec![54, 78, 86, 79, 73, 64, 85, 88]),
-        operation: &monkey1_op,
+        operation: Box::new(|old| old + 8),
         test: 11,
         if_true: 4,
         if_false: 7,
@@ -56,7 +30,7 @@ fn main() {
     };
     let monkey2 = Monkey {
         items: VecDeque::from(vec![69, 97, 77, 88, 87]),
-        operation: &monkey2_op,
+        operation: Box::new(|old| old + 2),
         test: 2,
         if_true: 5,
         if_false: 3,
@@ -64,7 +38,7 @@ fn main() {
     };
     let monkey3 = Monkey {
         items: VecDeque::from(vec![99]),
-        operation: &monkey3_op,
+        operation: Box::new(|old| old + 4),
         test: 13,
         if_true: 1,
         if_false: 5,
@@ -72,7 +46,7 @@ fn main() {
     };
     let monkey4 = Monkey {
         items: VecDeque::from(vec![60, 57, 52]),
-        operation: &monkey4_op,
+        operation: Box::new(|old| old * 19),
         test: 7,
         if_true: 7,
         if_false: 6,
@@ -80,7 +54,7 @@ fn main() {
     };
     let monkey5 = Monkey {
         items: VecDeque::from(vec![91, 82, 85, 73, 84, 53]),
-        operation: &monkey5_op,
+        operation: Box::new(|old| old + 5),
         test: 3,
         if_true: 4,
         if_false: 1,
@@ -88,7 +62,7 @@ fn main() {
     };
     let monkey6 = Monkey {
         items: VecDeque::from(vec![88, 74, 68, 56]),
-        operation: &monkey6_op,
+        operation: Box::new(|old| old * old),
         test: 17,
         if_true: 0,
         if_false: 2,
@@ -96,7 +70,7 @@ fn main() {
     };
     let monkey7 = Monkey {
         items: VecDeque::from(vec![54, 82, 72, 71, 53, 99, 67]),
-        operation: &monkey7_op,
+        operation: Box::new(|old| old + 1),
         test: 19,
         if_true: 6,
         if_false: 0,
@@ -110,8 +84,7 @@ fn main() {
     let cap = monkeys
         .iter()
         .map(|monkey| monkey.test)
-        .reduce(|acc, x| acc * x)
-        .unwrap();
+        .fold(1, |acc, x| acc * x);
     println!("Cap: {cap}");
 
     (0..10000).for_each(|round| {
