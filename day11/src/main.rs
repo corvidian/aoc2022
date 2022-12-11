@@ -1,6 +1,6 @@
+use core::fmt;
 use std::collections::VecDeque;
 
-#[derive(Debug)]
 struct Monkey {
     items: VecDeque<u64>,
     operation: Operation,
@@ -12,47 +12,15 @@ struct Monkey {
 
 impl Monkey {
     fn parse(lines: &[String], i: usize) -> Monkey {
-        let a: [&str; 2] = lines[7 * i + 2]
-            .trim()
-            .split(' ')
-            .skip(4)
-            .take(2)
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        let operation = match a {
-            ["*", "old"] => Operation::Square,
-            ["*", a] => Operation::Multiply(a.parse().unwrap()),
-            ["+", a] => Operation::Add(a.parse().unwrap()),
-            [a, b] => panic!("Odd operation {a} {b}"),
-        };
+        let items: VecDeque<u64> = lines[7 * i + 1][18..]
+            .split(", ")
+            .filter_map(|part| part.parse().ok())
+            .collect();
 
-        let items = lines[7 * i + 1]
-            .split(&[',', ' '])
-            .into_iter()
-            .filter_map(|part| part.parse::<u64>().ok())
-            .collect::<VecDeque<_>>();
-
-        let test = lines[7 * i + 3]
-            .split(' ')
-            .last()
-            .unwrap()
-            .parse::<u64>()
-            .unwrap();
-
-        let if_true = lines[7 * i + 4]
-            .split(' ')
-            .last()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
-
-        let if_false = lines[7 * i + 5]
-            .split(' ')
-            .last()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
+        let operation = Operation::parse(&lines[7 * i + 2][23..]);
+        let test: u64 = lines[7 * i + 3][21..].parse().unwrap();
+        let if_true: usize = lines[7 * i + 4][29..].parse().unwrap();
+        let if_false: usize = lines[7 * i + 5][30..].parse().unwrap();
 
         Monkey {
             items,
@@ -65,7 +33,16 @@ impl Monkey {
     }
 }
 
-#[derive(Debug)]
+impl fmt::Debug for Monkey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use fmt::Write;
+
+        let faces = ['🙈', '🙉', '🙊'];
+        let i = fastrand::usize(..faces.len());
+        f.write_char(faces[i])
+    }
+}
+
 enum Operation {
     Add(u64),
     Multiply(u64),
@@ -73,6 +50,15 @@ enum Operation {
 }
 
 impl Operation {
+    fn parse(ops: &str) -> Operation {
+        match ops.split_once(' ').unwrap() {
+            ("*", "old") => Operation::Square,
+            ("*", a) => Operation::Multiply(a.parse().unwrap()),
+            ("+", a) => Operation::Add(a.parse().unwrap()),
+            (a, b) => panic!("Odd operation {a} {b}"),
+        }
+    }
+
     fn calc(&self, old: u64) -> u64 {
         match self {
             Operation::Add(x) => old + x,
@@ -83,25 +69,24 @@ impl Operation {
 }
 
 const N: usize = 8;
+const ROUNDS: usize = 10000;
 
 fn main() {
     let input = aoc::read_input_lines();
 
-    let mut troop: [Monkey; N] = (0..8)
+    let mut troop: [Monkey; N] = (0..N)
         .map(|i| Monkey::parse(&input, i))
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
 
-    let cap = troop
-        .iter()
-        .map(|monkey| monkey.test)
-        .product();
+    let cap = troop.iter().map(|monkey| monkey.test).product();
 
-    (0..10000).for_each(|_| {
+    (0..ROUNDS).for_each(|_| {
         (0..N).for_each(|i| turn(&mut troop, i, cap));
     });
     troop.sort_by_key(|monkey| monkey.inspections);
+    println!("{troop:?}");
     println!(
         "Result: {}",
         troop[N - 2].inspections * troop[N - 1].inspections
