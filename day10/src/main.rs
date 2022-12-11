@@ -3,9 +3,7 @@ fn main() {
     let mut x = 1i32;
     let mut sum = 0i32;
 
-    let input = aoc::read_input_lines();
-    let mut iter = input.iter();
-    while let Some(line) = iter.next() {
+    aoc::read_input_lines().iter().for_each(|line| {
         if line == "noop" {
             cycle(&mut cycles, &x, &mut sum);
         } else if line.starts_with("addx") {
@@ -16,7 +14,7 @@ fn main() {
         } else {
             panic!("Unknown instruction {line}");
         }
-    }
+    });
 
     println!("Part 1: {sum}");
 }
