@@ -31,47 +31,39 @@ fn main() {
 
     let min = starts
         .iter()
-        .filter_map(|&start| find(&map, start, target, false))
+        .filter_map(|&start| find(&map, start, target))
         .min();
 
-    println!("Part 1: {:?}", find(&map, part1_start, target, true));
+    println!("Part 1: {:?}", find(&map, part1_start, target));
     println!("Part 2: {min:?}");
 }
 
-fn find(
-    map: &[Vec<char>],
-    start: (usize, usize),
-    target: (usize, usize),
-    visualize: bool,
-) -> Option<i32> {
+fn find(map: &[Vec<char>], start: (usize, usize), target: (usize, usize)) -> Option<i32> {
     let height = map.len();
     let width = map[0].len();
 
     let mut visited = vec![vec![i32::MAX; width]; height];
+    let mut parents: Vec<Vec<Option<(usize, usize)>>> = vec![vec![None; width]; height];
+    let mut queue: VecDeque<(usize, usize)> = vec![start].into();
     visited[start.0][start.1] = 0;
 
-    let mut queue: VecDeque<(usize, usize)> = vec![start].into();
-
-    while let Some((x, y)) = queue.pop_front() {
-        let steps = visited[x][y];
-        if (x, y) == target {
-            if visualize {
-                visualize_visited(map, &visited, target);
+    while let Some((y, x)) = queue.pop_front() {
+        let steps = visited[y][x];
+        if (y, x) == target {
+            if start == (27, 0) {
+                visualize_path(map, &parents, target);
             }
             return Some(steps);
         }
-        let current_value = map[x][y] as u32;
 
         for (dy, dx) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-            if let Ok(row) = usize::try_from(x as i32 + dx) {
-                if let Ok(col) = usize::try_from(y as i32 + dy) {
+            if let Ok(row) = usize::try_from(y as i32 + dy) {
+                if let Ok(col) = usize::try_from(x as i32 + dx) {
                     if row < height && col < width {
                         let next_value = map[row][col] as u32;
-                        if next_value <= current_value + 1
-                            && visited[row][col] > steps
-                            && !queue.contains(&(row, col))
-                        {
+                        if next_value <= map[y][x] as u32 + 1 && visited[row][col] == i32::MAX {
                             visited[row][col] = steps + 1;
+                            parents[row][col] = Some((y, x));
                             queue.push_back((row, col));
                         }
                     }
@@ -82,36 +74,41 @@ fn find(
     None
 }
 
-fn visualize_visited(map: &[Vec<char>], visited: &[Vec<i32>], target: (usize, usize)) {
+fn visualize_path(
+    map: &[Vec<char>],
+    parents: &[Vec<Option<(usize, usize)>>],
+    target: (usize, usize),
+) {
     let mut output: Vec<_> = map.to_vec();
-
+    let mut counter = 0;
     let (mut y, mut x) = target;
-    output[y][x] = '🔰';
+    output[y][x] = '⛳';
 
-    while visited[y][x] > 0 {
-        if y > 0 && visited[y - 1][x] as u32 == visited[y][x] as u32 - 1 {
-            output[y - 1][x] = '⏬';
-            y -= 1;
-        } else if x > 0 && visited[y][x - 1] as u32 == visited[y][x] as u32 - 1 {
-            output[y][x - 1] = '⏩';
-            x -= 1;
-        } else if y < visited.len() && visited[y + 1][x] as u32 == visited[y][x] as u32 - 1 {
-            output[y + 1][x] = '⏫';
-            y += 1;
-        } else if x < visited[y].len() && visited[y][x + 1] as u32 == visited[y][x] as u32 - 1 {
-            output[y][x + 1] = '⏪';
-            x += 1;
+    while let Some(parent) = parents[y][x] {
+        let (py, px) = parent;
+        counter += 1;
+        if py < y {
+            output[py][px] = '⏬';
+        } else if py > y {
+            output[py][px] = '⏫';
+        } else if px < x {
+            output[py][px] = '⏩';
+        } else if px > x {
+            output[py][px] = '⏪';
         }
+
+        (y, x) = parent;
     }
 
-    output[y][x] = '⛳';
+    output[y][x] = '🔰';
 
     let narrow_a = 'a' as u32;
     let fullwidth_a = '\u{FF21}' as u32;
 
-    for row in output {
+    for (y, row) in output.iter().enumerate() {
+        print!("{y:2} ");
         for char in row {
-            let char_value = char as u32 - narrow_a;
+            let char_value = *char as u32 - narrow_a;
             if char_value < 26 {
                 print!("{}", char::try_from(fullwidth_a + char_value).unwrap());
             } else {
@@ -120,7 +117,18 @@ fn visualize_visited(map: &[Vec<char>], visited: &[Vec<i32>], target: (usize, us
         }
         println!();
     }
-
+    print!("   ");
+    for i in 0..output[0].len() {
+        print!("{}", char::try_from(0xff10u32 + (i % 10) as u32).unwrap());
+    }
+    print!("\n   ");
+    for i in 0..=output[0].len() / 10 {
+        print!(
+            "{}\u{3000}\u{3000}\u{3000}\u{3000}\u{3000}\u{3000}\u{3000}\u{3000}\u{3000}",
+            char::try_from(0xff10u32 + i as u32).unwrap()
+        );
+    }
+    println!("\nCounter: {counter}");
     println!();
     println!();
 }
