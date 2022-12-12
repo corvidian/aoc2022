@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-type Position = (usize, usize);
-
 fn main() {
     let input = aoc::read_input_lines();
     let mut map = input
@@ -9,55 +7,56 @@ fn main() {
         .map(|i| i.chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    let starts: Vec<Position> = map
+    let starts: Vec<(usize,usize)> = map
         .iter()
         .enumerate()
-        .filter_map(|(i, line)| {
+        .flat_map(|(i, line)| {
             line.iter()
-                .position(|c| *c == 'S' || *c == 'a')
-                .map(|pos| (i, pos))
+                .enumerate()
+                .filter(|(_, &c)| c == 'S' || c == 'a')
+                .map(move |(pos, _)| (i, pos))
         })
         .collect();
+    let part1_start = starts
+        .iter()
+        .find(|&start| map[start.0][start.1] == 'S')
+        .unwrap();
+    map[part1_start.0][part1_start.1] = 'a';
 
     let min = starts
         .iter()
-        .map(|&start| {
-            println!("{start:?}");
-            map[start.0][start.1] = 'a';
+        .filter_map(|&start| find(&map, start))
+        .min()
+        .unwrap();
 
-            find(&map, start)
-        })
-        .min();
+    println!("Part 1: {:?}", find(&map, *part1_start));
     println!("Part 2: {min:?}");
 }
 
-fn find(map: &[Vec<char>], start: Position) -> i32 {
+fn find(map: &[Vec<char>], start: (usize,usize)) -> Option<i32> {
     let height = map.len();
     let width = map[0].len();
 
     let mut visited = vec![vec![i32::MAX; width]; height];
     visited[start.0][start.1] = 0;
 
-    let mut queue: VecDeque<Position> = vec![start].into();
+    let mut queue: VecDeque<(usize,usize)> = vec![start].into();
 
     while let Some(current) = queue.pop_front() {
         let steps = visited[current.0][current.1];
         let current_value = map[current.0][current.1] as u32;
-        //println!("current: {current:?}, current_value: {current_value:?} steps: {steps}");
         if map[current.0][current.1] == 'E' {
-            println!("Result: {steps}");
-            return steps;
+            return Some(steps);
         }
 
-        for next in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-            if let Ok(row) = usize::try_from(current.0 as i32 + next.0) {
-                if let Ok(col) = usize::try_from(current.1 as i32 + next.1) {
+        for delta in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+            if let Ok(row) = usize::try_from(current.0 as i32 + delta.0) {
+                if let Ok(col) = usize::try_from(current.1 as i32 + delta.1) {
                     if row < height && col < width {
                         let mut next_value = map[row][col] as u32;
                         if map[row][col] == 'E' {
                             next_value = 'z' as u32
                         }
-                        //println!("next: {next:?} next value: {next_value}");
                         if next_value <= current_value + 1
                             && visited[row][col] > steps
                             && !queue.contains(&(row, col))
@@ -70,5 +69,5 @@ fn find(map: &[Vec<char>], start: Position) -> i32 {
             }
         }
     }
-    return 0;
+    return None;
 }
