@@ -8,20 +8,35 @@ fn main() {
         .iter()
         .map(|i| i.chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
+
+    let starts: Vec<Position> = map
+        .iter()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            line.iter()
+                .position(|c| *c == 'S' || *c == 'a')
+                .map(|pos| (i, pos))
+        })
+        .collect();
+
+    let min = starts
+        .iter()
+        .map(|&start| {
+            println!("{start:?}");
+            map[start.0][start.1] = 'a';
+
+            find(&map, start)
+        })
+        .min();
+    println!("Part 2: {min:?}");
+}
+
+fn find(map: &[Vec<char>], start: Position) -> i32 {
     let height = map.len();
     let width = map[0].len();
 
-    let start: Position = map
-        .iter()
-        .enumerate()
-        .find_map(|(i, line)| line.iter().position(|c| *c == 'S').map(|pos| (i, pos)))
-        .unwrap();
-
-    println!("{start:?}");
-
     let mut visited = vec![vec![i32::MAX; width]; height];
     visited[start.0][start.1] = 0;
-    map[start.0][start.1] = 'a';
 
     let mut queue: VecDeque<Position> = vec![start].into();
 
@@ -31,7 +46,7 @@ fn main() {
         //println!("current: {current:?}, current_value: {current_value:?} steps: {steps}");
         if map[current.0][current.1] == 'E' {
             println!("Result: {steps}");
-            return;
+            return steps;
         }
 
         for next in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
@@ -43,7 +58,10 @@ fn main() {
                             next_value = 'z' as u32
                         }
                         //println!("next: {next:?} next value: {next_value}");
-                        if next_value <= current_value + 1 && visited[row][col] > steps && !queue.contains(&(row,col)){
+                        if next_value <= current_value + 1
+                            && visited[row][col] > steps
+                            && !queue.contains(&(row, col))
+                        {
                             visited[row][col] = steps + 1;
                             queue.push_back((row, col));
                         }
@@ -52,4 +70,5 @@ fn main() {
             }
         }
     }
+    return 0;
 }
