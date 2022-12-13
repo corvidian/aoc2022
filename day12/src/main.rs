@@ -29,30 +29,28 @@ fn main() {
         }
     }
 
-    let min = starts
-        .iter()
-        .filter_map(|&start| find(&map, start, target))
-        .min();
-
-    println!("Part 1: {:?}", find(&map, part1_start, target));
-    println!("Part 2: {min:?}");
+    let part1 = find(&map, &[part1_start], target);
+    let part2 = find(&map, &starts, target);
+    println!("Part 1: {part1:?}");
+    println!("Part 2: {part2:?}");
 }
 
-fn find(map: &[Vec<char>], start: (usize, usize), target: (usize, usize)) -> Option<i32> {
+fn find(map: &[Vec<char>], starts: &[(usize, usize)], target: (usize, usize)) -> Option<i32> {
     let height = map.len();
     let width = map[0].len();
 
     let mut visited = vec![vec![i32::MAX; width]; height];
     let mut parents: Vec<Vec<Option<(usize, usize)>>> = vec![vec![None; width]; height];
-    let mut queue: VecDeque<(usize, usize)> = vec![start].into();
-    visited[start.0][start.1] = 0;
+    let mut queue: VecDeque<(usize, usize)> = VecDeque::with_capacity(width * height / 10);
+    queue.extend(starts.iter());
+    for start in starts {
+        visited[start.0][start.1] = 0;
+    }
 
     while let Some((y, x)) = queue.pop_front() {
         let steps = visited[y][x];
         if (y, x) == target {
-            if start == (27, 0) {
-                visualize_path(map, &parents, target);
-            }
+            visualize_path(map, &parents, target);
             return Some(steps);
         }
 
