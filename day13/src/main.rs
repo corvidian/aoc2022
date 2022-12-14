@@ -10,8 +10,6 @@ enum Item {
     List(Vec<Item>),
 }
 
-impl Item {}
-
 impl<const N: usize> From<[u64; N]> for Item {
     fn from(items: [u64; N]) -> Self {
         Item::List(items.iter().map(|i| i.into()).collect())
