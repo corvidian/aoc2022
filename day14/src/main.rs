@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::{Index, IndexMut};
 
 // (y, x)
-#[derive(Clone, Copy)]
+#[derive(Clone, PartialEq)]
 struct Position(usize, usize);
 
 impl TryFrom<&str> for Position {
@@ -68,6 +68,7 @@ trait Visualize {
 struct CaveMap {
     height: usize,
     width: usize,
+    max_y: usize,
     min_x: usize,
     max_x: usize,
     source: Position,
@@ -76,11 +77,14 @@ struct CaveMap {
 
 impl CaveMap {
     fn new(max_y: usize, min_x: usize, max_x: usize) -> Self {
-        let height = max_y + 1;
+        let height = max_y + 3;
+        let min_x = (500 - height).min(min_x - 1);
+        let max_x = (500 + height).max(max_x + 1);
         let width = max_x - min_x + 1;
         CaveMap {
             height,
             width,
+            max_y,
             min_x,
             max_x,
             source: Position(0, 500),
@@ -105,10 +109,22 @@ impl CaveMap {
         &mut self.data[y * self.width + x - self.min_x]
     }
 
+    fn horizontal_line(&mut self, row: usize, start: usize, end: usize) {
+        for x in start..=end {
+            *self.set(row, x) = b'#';
+        }
+    }
+
+    fn vertical_line(&mut self, column: usize, start: usize, end: usize) {
+        for y in start..=end {
+            *self.set(y, column) = b'#';
+        }
+    }
+
     fn drop_one_sand(&mut self) -> bool {
-        fn next_from(map: &CaveMap, pos: Position) -> Option<Position> {
-            let candidates = vec![(1, 0), (1, -1), (1, 1)];
-            candidates
+        fn next_from(map: &CaveMap, pos: &Position) -> Option<Position> {
+            const CANDIDATES: [(i32, i32); 3] = [(1, 0), (1, -1), (1, 1)];
+            CANDIDATES
                 .iter()
                 .map(|(dy, dx)| (pos.0 as i32 + dy, pos.1 as i32 + dx))
                 .filter_map(|(y, x)| {
@@ -119,37 +135,25 @@ impl CaveMap {
                 .next()
         }
 
-        let mut source = self.source.clone();
-        while let Some(next) = next_from(self, source) {
-            source = next;
-        }
-        if source.0 == self.height - 1 || source.1 == self.min_x || source.1 == self.max_x {
-            //self.visualize();
+        let mut sand = self.source.clone();
+        if self[&sand] == b'o' {
             return false;
         }
 
-        self[&source] = b'o';
-        //self.visualize();
-        return true;
+        while let Some(next) = next_from(self, &sand) {
+            sand = next;
+        }
+        if sand.0 == self.height - 1 {
+            return false;
+        }
+
+        self[&sand] = b'o';
+        true
     }
 }
 
 impl From<Vec<Shape>> for CaveMap {
     fn from(shapes: Vec<Shape>) -> Self {
-        fn horizontal_line(map: &mut CaveMap, row: usize, start: usize, end: usize) {
-            for x in start..=end {
-                *map.set(row, x) = b'#';
-            }
-            //map.visualize();
-        }
-
-        fn vertical_line(map: &mut CaveMap, column: usize, start: usize, end: usize) {
-            for y in start..=end {
-                *map.set(y, column) = b'#';
-            }
-            //map.visualize();
-        }
-
         let (min_y, max_y) = shapes
             .iter()
             .flat_map(|shape| shape.0.iter().map(|position| position.0))
@@ -174,10 +178,10 @@ impl From<Vec<Shape>> for CaveMap {
                     pair[0].1 as i32 - pair[1].1 as i32,
                 ) {
                     (0, 0) => {}
-                    (0, x) if x < 0 => horizontal_line(&mut map, pair[0].0, pair[0].1, pair[1].1),
-                    (0, x) if x > 0 => horizontal_line(&mut map, pair[0].0, pair[1].1, pair[0].1),
-                    (y, 0) if y < 0 => vertical_line(&mut map, pair[0].1, pair[0].0, pair[1].0),
-                    (y, 0) if y > 0 => vertical_line(&mut map, pair[0].1, pair[1].0, pair[0].0),
+                    (0, x) if x < 0 => map.horizontal_line(pair[0].0, pair[0].1, pair[1].1),
+                    (0, x) if x > 0 => map.horizontal_line(pair[0].0, pair[1].1, pair[0].1),
+                    (y, 0) if y < 0 => map.vertical_line(pair[0].1, pair[0].0, pair[1].0),
+                    (y, 0) if y > 0 => map.vertical_line(pair[0].1, pair[1].0, pair[0].0),
                     (_, _) => {
                         unimplemented!("Diagonal lines not supported: {}, {}", pair[0], pair[1])
                     }
@@ -223,10 +227,6 @@ fn main() {
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
 
-    for shape in &shapes {
-        println!("{}", shape);
-    }
-
     let mut map: CaveMap = shapes.into();
     map.visualize();
 
@@ -235,5 +235,16 @@ fn main() {
         i += 1;
     }
     map.visualize();
-    println!("Part 1: {i}");
+    let part1 = i;
+
+    map.horizontal_line(map.max_y + 2, map.min_x, map.max_x);
+    map.visualize();
+
+    while map.drop_one_sand() {
+        i += 1;
+    }
+    map.visualize();
+
+    println!("Part 1: {part1}");
+    println!("Part 2: {i}");
 }
