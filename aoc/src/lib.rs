@@ -22,6 +22,21 @@ fn get_filename() -> String {
     env::args().nth(1).unwrap_or("input.txt".to_string())
 }
 
+pub fn input_lines() -> impl Iterator<Item = String> {
+    iter_lines(get_filename())
+}
+
+
+fn iter_lines<P>(filename: P) -> impl Iterator<Item = String>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(filename).expect("File not found!");
+    BufReader::new(file)
+        .lines()
+        .map(|l| l.expect("Error reading line"))
+}
+
 fn read_lines<P>(filename: P) -> Vec<String>
 where
     P: AsRef<Path>,
