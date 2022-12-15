@@ -35,28 +35,22 @@ fn parse_line(line: &str) -> Sensor {
 }
 
 fn main() {
+    //use std::time::Instant;
+    //let start_time = Instant::now();
     let sensors: Vec<_> = aoc::input_lines().map(|line| parse_line(&line)).collect();
+    //println!("Parsing done: {:?}", start_time.elapsed());
 
     for y in LOWER_LIMIT..=UPPER_LIMIT {
-        let mut sections: Vec<_> = sensors
+        let sections: Vec<_> = sensors
             .iter()
             .filter_map(|sensor| {
                 let diff = sensor.distance - (sensor.y - y).abs();
                 (diff >= 0).then_some((sensor.x - diff, sensor.x + diff))
             })
+            //.filter(|(start,end)| !(*end < LOWER_LIMIT || *start > UPPER_LIMIT))
             .collect();
 
-        let mut combined_section = sections.pop().unwrap();
-        while let Some((i, section)) = sections.iter().enumerate().find(|(_, &section)| {
-            (combined_section.0 <= section.0 && section.0 <= combined_section.1)
-                || (combined_section.0 <= section.1 && section.1 <= combined_section.1)
-                || (section.0 <= combined_section.0 && combined_section.0 <= section.1)
-                || (section.0 <= combined_section.1 && combined_section.1 <= section.1)
-        }) {
-            combined_section.0 = combined_section.0.min(section.0);
-            combined_section.1 = combined_section.1.max(section.1);
-            sections.remove(i);
-        }
+        let (left_over, combined_section) = combine_sections(sections);
 
         if y == PART1_ROW {
             println!(
@@ -65,20 +59,34 @@ fn main() {
             );
         }
 
-        if !sections.is_empty() {
-            println!("Combined: {combined_section:?}");
-            println!("Left over: {sections:?}");
-            sections.push(combined_section);
-
-            for x in LOWER_LIMIT..=UPPER_LIMIT {
-                match sections.iter().find(|(min, max)| *min <= x && x <= *max) {
-                    Some(_) => {}
-                    None => {
-                        println!("Found: {x}, {y}, Frequency = {}", x * 4000000 + y);
-                        return;
-                    }
-                };
-            }
+        if !left_over.is_empty() {
+            //println!("Found row: {:?}", start_time.elapsed());
+            let (forever_alone, left_over_combined) = combine_sections(left_over);
+            assert!(forever_alone.is_empty());
+            let x = if left_over_combined.1 < combined_section.0 {
+                left_over_combined.1 + 1
+            } else {
+                combined_section.1 + 1
+            };
+            println!("Found: {x}, {y}, Frequency = {}", x * 4000000 + y);
+            //println!("Found frequency: {:?}", start_time.elapsed());
+            return;
         }
     }
+}
+
+fn combine_sections(sections: Vec<(i64, i64)>) -> (Vec<(i64, i64)>, (i64, i64)) {
+    let mut sections = sections;
+    let mut combined_section = sections.pop().unwrap();
+    while let Some((i, section)) = sections.iter().enumerate().find(|(_, &section)| {
+        (combined_section.0 <= section.0 && section.0 <= combined_section.1)
+            || (combined_section.0 <= section.1 && section.1 <= combined_section.1)
+            || (section.0 <= combined_section.0 && combined_section.0 <= section.1)
+            || (section.0 <= combined_section.1 && combined_section.1 <= section.1)
+    }) {
+        combined_section.0 = combined_section.0.min(section.0);
+        combined_section.1 = combined_section.1.max(section.1);
+        sections.swap_remove(i);
+    }
+    (sections, combined_section)
 }
