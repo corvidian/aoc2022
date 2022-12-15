@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use std::fmt;
+use std::io::{stdout, Write};
 use std::ops::{Index, IndexMut};
 
 // (y, x)
@@ -50,15 +51,13 @@ impl fmt::Display for Shape {
 }
 
 trait Visualize {
-    fn cell(&self, y: usize, x: usize) -> char;
+    fn row(&self, y: usize) -> &[u8];
     fn height(&self) -> usize;
     fn width(&self) -> usize;
 
     fn visualize(&self) {
         for y in 0..self.height() {
-            for x in 0..self.width() {
-                print!("{}", self.cell(y, x));
-            }
+            stdout().write_all(self.row(y)).expect("I/O Error on print");
             println!();
         }
         println!();
@@ -122,17 +121,18 @@ impl CaveMap {
     }
 
     fn drop_one_sand(&mut self) -> bool {
-        fn next_from(map: &CaveMap, pos: &Position) -> Option<Position> {
+        fn next_from(map: &CaveMap, pos: &mut Position) -> bool {
             const CANDIDATES: [(i32, i32); 3] = [(1, 0), (1, -1), (1, 1)];
-            CANDIDATES
-                .iter()
-                .map(|(dy, dx)| (pos.0 as i32 + dy, pos.1 as i32 + dx))
-                .filter_map(|(y, x)| {
-                    map.get(y, x)
-                        .filter(|&c| c == &b'.')
-                        .map(|_| Position(y as usize, x as usize))
-                })
-                .next()
+            for (dy, dx) in CANDIDATES {
+                if let Some(c) = map.get(pos.0 as i32 + dy, pos.1 as i32 + dx) {
+                    if c == &b'.' {
+                        pos.0 = (pos.0 as i32 + dy) as usize;
+                        pos.1 = (pos.1 as i32 + dx) as usize;
+                        return true;
+                    }
+                }
+            }
+            false
         }
 
         let mut sand = self.source.clone();
@@ -140,9 +140,7 @@ impl CaveMap {
             return false;
         }
 
-        while let Some(next) = next_from(self, &sand) {
-            sand = next;
-        }
+        while next_from(self, &mut sand) {}
         if sand.0 == self.height - 1 {
             return false;
         }
@@ -154,11 +152,10 @@ impl CaveMap {
 
 impl From<Vec<Shape>> for CaveMap {
     fn from(shapes: Vec<Shape>) -> Self {
-        let (min_y, max_y) = shapes
+        let max_y = shapes
             .iter()
             .flat_map(|shape| shape.0.iter().map(|position| position.0))
-            .minmax()
-            .into_option()
+            .max()
             .expect("No elements");
         let (min_x, max_x) = shapes
             .iter()
@@ -166,7 +163,6 @@ impl From<Vec<Shape>> for CaveMap {
             .minmax()
             .into_option()
             .expect("No elements");
-        dbg!(&min_y, &max_y, &min_x, &max_x);
 
         let mut map = CaveMap::new(max_y, min_x, max_x);
         *map.set(map.source.0, map.source.1) = b'+';
@@ -208,8 +204,9 @@ impl IndexMut<&Position> for CaveMap {
 }
 
 impl Visualize for CaveMap {
-    fn cell(&self, y: usize, x: usize) -> char {
-        self.data[y * self.width + x].into()
+    fn row(&self, y: usize) -> &[u8] {
+        let start = y * self.width;
+        &self.data[start..(start + self.width)]
     }
 
     fn height(&self) -> usize {
@@ -228,22 +225,22 @@ fn main() {
         .unwrap();
 
     let mut map: CaveMap = shapes.into();
-    map.visualize();
+    //map.visualize();
 
     let mut i = 0;
     while map.drop_one_sand() {
         i += 1;
     }
-    map.visualize();
+    //map.visualize();
     let part1 = i;
 
     map.horizontal_line(map.max_y + 2, map.min_x, map.max_x);
-    map.visualize();
+    //map.visualize();
 
     while map.drop_one_sand() {
         i += 1;
     }
-    map.visualize();
+    //map.visualize();
 
     println!("Part 1: {part1}");
     println!("Part 2: {i}");
