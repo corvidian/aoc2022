@@ -8,6 +8,8 @@ struct Sensor {
     distance: i64,
 }
 
+type Section = (i64,i64);
+
 //Example const PART1_ROW: i64 = 10;
 //Example const BEACONS_ON_ROW:i64 = 1;
 const PART1_ROW: i64 = 2000000;
@@ -34,49 +36,21 @@ fn parse_line(line: &str) -> Sensor {
     Sensor { x, y, distance }
 }
 
-fn main() {
-    //use std::time::Instant;
-    //let start_time = Instant::now();
-    let sensors: Vec<_> = aoc::input_lines().map(|line| parse_line(&line)).collect();
-    //println!("Parsing done: {:?}", start_time.elapsed());
-
-    for y in LOWER_LIMIT..=UPPER_LIMIT {
-        let sections: Vec<_> = sensors
-            .iter()
-            .filter_map(|sensor| {
-                let diff = sensor.distance - (sensor.y - y).abs();
-                (diff >= 0).then_some((sensor.x - diff, sensor.x + diff))
-            })
-            //.filter(|(start,end)| !(*end < LOWER_LIMIT || *start > UPPER_LIMIT))
-            .collect();
-
-        let (left_over, combined_section) = combine_sections(sections);
-
-        if y == PART1_ROW {
-            println!(
-                "Part 1: {}",
-                combined_section.1 - combined_section.0 + 1 - BEACONS_ON_ROW
-            );
-        }
-
-        if !left_over.is_empty() {
-            //println!("Found row: {:?}", start_time.elapsed());
-            let (forever_alone, left_over_combined) = combine_sections(left_over);
-            assert!(forever_alone.is_empty());
-            let x = if left_over_combined.1 < combined_section.0 {
-                left_over_combined.1 + 1
-            } else {
-                combined_section.1 + 1
-            };
-            println!("Found: {x}, {y}, Frequency = {}", x * 4000000 + y);
-            //println!("Found frequency: {:?}", start_time.elapsed());
-            return;
-        }
-    }
+fn parse() -> Vec<Sensor> {
+    aoc::input_lines().map(|line| parse_line(&line)).collect()
 }
 
-fn combine_sections(sections: Vec<(i64, i64)>) -> (Vec<(i64, i64)>, (i64, i64)) {
-    let mut sections = sections;
+fn get_sections(y: i64, sensors: &[Sensor], sections: &mut Vec<Section>) {
+    sensors
+        .iter()
+        .filter_map(|sensor| {
+            let diff = sensor.distance - (sensor.y - y).abs();
+            (diff >= 0).then_some((sensor.x - diff, sensor.x + diff))
+        })
+        .for_each(|section| sections.push(section));
+}
+
+fn combine_sections(sections: &mut Vec<Section>) -> Section {
     let mut combined_section = sections.pop().unwrap();
     while let Some((i, section)) = sections.iter().enumerate().find(|(_, &section)| {
         (combined_section.0 <= section.0 && section.0 <= combined_section.1)
@@ -88,5 +62,41 @@ fn combine_sections(sections: Vec<(i64, i64)>) -> (Vec<(i64, i64)>, (i64, i64)) 
         combined_section.1 = combined_section.1.max(section.1);
         sections.swap_remove(i);
     }
-    (sections, combined_section)
+    combined_section
+}
+
+fn main() {
+    use std::time::Instant;
+    let start_time = Instant::now();
+    let sensors: Vec<_> = parse();
+    println!("Parsing done: {:?}", start_time.elapsed());
+
+    let mut sections: Vec<Section> = Vec::with_capacity(sensors.len());
+
+    for y in LOWER_LIMIT..=UPPER_LIMIT {
+        get_sections(y, &sensors, &mut sections);
+
+        let combined_section = combine_sections(&mut sections);
+
+        if y == PART1_ROW {
+            println!(
+                "Part 1: {}",
+                combined_section.1 - combined_section.0 + 1 - BEACONS_ON_ROW
+            );
+        }
+
+        if !sections.is_empty() {
+            println!("Found row: {:?}", start_time.elapsed());
+            let left_over_combined = combine_sections(&mut sections);
+            assert!(sections.is_empty());
+            let x = if left_over_combined.1 < combined_section.0 {
+                left_over_combined.1 + 1
+            } else {
+                combined_section.1 + 1
+            };
+            println!("Found: {x}, {y}, Frequency = {}", x * 4000000 + y);
+            println!("Found frequency: {:?}", start_time.elapsed());
+            return;
+        }
+    }
 }
