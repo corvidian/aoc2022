@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 type Position = (usize, usize, usize);
 
 static DELTAS: [(i64, i64, i64); 6] = [
@@ -21,34 +23,42 @@ fn c(a: &usize, da: i64) -> usize {
     (*a as i64 + da) as usize
 }
 
-fn find_air(start: Position, visited: &mut [Vec<Vec<bool>>], space: &[Vec<Vec<bool>>]) -> bool {
-    for a in &mut *visited {
-        for b in a {
-            for c in b {
-                *c = false;
+fn coords(
+    x: usize,
+    dx: i64,
+    y: usize,
+    dy: i64,
+    z: usize,
+    dz: i64,
+    end: i64,
+) -> Option<(usize, usize, usize)> {
+    let cx = x as i64 + dx;
+    let cy = y as i64 + dy;
+    let cz = z as i64 + dz;
+    if cx >= 0 && cx <= end && cy >= 0 && cy <= end && cz >= 0 && cz <= end {
+        Some((cx as usize, cy as usize, cz as usize))
+    } else {
+        None
+    }
+}
+
+fn find_air(space: &[Vec<Vec<bool>>], open_air: &mut [Vec<Vec<bool>>]) {
+    let mut queue: VecDeque<(usize, usize, usize)> =
+        VecDeque::with_capacity(space.len() * space.len() * space.len() / 10);
+    let end = (space.len() - 1) as i64;
+    queue.push_back((0, 0, 0));
+    open_air[0][0][0] = true;
+
+    while let Some((x, y, z)) = queue.pop_front() {
+        for (dy, dx, dz) in DELTAS {
+            if let Some((x, y, z)) = coords(x, dx, y, dy, z, dz, end) {
+                if !open_air[x][y][z] && space[x][y][z] {
+                    open_air[x][y][z] = true;
+                    queue.push_back((x, y, z));
+                }
             }
         }
     }
-
-    let found = visit(start, visited, space);
-    found
-}
-
-fn visit(next: Position, visited: &mut [Vec<Vec<bool>>], space: &[Vec<Vec<bool>>]) -> bool {
-    let (x, y, z) = next;
-    let end = space.len() - 1;
-    if x == 0 || x == end || y == 0 || y == end || z == 0 || z == end {
-        return true;
-    }
-    visited[next.0][next.1][next.2] = true;
-
-    for (dx, dy, dz) in DELTAS {
-        let (x, y, z) = (c(&x, dx), c(&y, dy), c(&z, dz));
-        if space[x][y][z] && !visited[x][y][z] && visit((x, y, z), visited, space) {
-            return true;
-        }
-    }
-    false
 }
 
 fn main() {
@@ -64,33 +74,28 @@ fn main() {
     println!("Max dimension: {dimensions}");
 
     let mut space = vec![vec![vec![true; dimensions]; dimensions]; dimensions];
-    let mut open_air = vec![vec![vec![false; dimensions]; dimensions]; dimensions];
-    for x in 0..dimensions {
-        for y in 0..dimensions {
-            for z in 0..dimensions {
-                if x == 0 || x == dimensions-1 || y == 0 || y == dimensions-1 || z == 0 || z == dimensions-1 {
-                    open_air[x][y][z] = true;
-                }            
-            }
-        }
-    }
-    let mut visited = vec![vec![vec![false; dimensions]; dimensions]; dimensions];
-
     for (x, y, z) in &cubes {
         space[*x][*y][*z] = false;
     }
 
-    let mut free_sides = 0u64;
+    let mut open_air = vec![vec![vec![false; dimensions]; dimensions]; dimensions];
+    find_air(&space, &mut open_air);
+
+    let mut part1 = 0u64;
+    let mut part2 = 0u64;
 
     for (x, y, z) in &cubes {
         for (dx, dy, dz) in DELTAS {
             let (x, y, z) = (c(x, dx), c(y, dy), c(z, dz));
-            if space[x][y][z] && (open_air[x][y][z] || find_air((x, y, z), &mut visited, &space)) {
-                open_air[x][y][z] = true;
-                free_sides += 1;
+            if space[x][y][z] {
+                part1 += 1;
+            }
+            if open_air[x][y][z] {
+                part2 += 1;
             }
         }
     }
 
-    println!("{free_sides}");
+    println!("Part 1: {part1}");
+    println!("Part 2: {part2}");
 }
