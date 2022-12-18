@@ -215,7 +215,7 @@ fn main() {
     println!("One pass size: {one_pass_size}");
 
     let mut history = VecDeque::new();
-    history.push_front(1 as usize);
+    history.push_front(1usize);
 
     for i in 1..400000i64 {
         let shapes = Shape::all().cycle();
@@ -240,44 +240,42 @@ fn main() {
         );
 
         if let (Some(&a), Some(&b), Some(&c)) = (history.get(3), history.get(2), history.get(1)) {
-            if c - b == b - a {
-                if cavern.map[a..=b] == cavern.map[b..=c] {
-                    println!("Stablized between {}-{} and {}-{}", a, b, b, c);
+            if c - b == b - a && cavern.map[a..=b] == cavern.map[b..=c] {
+                println!("Stablized between {}-{} and {}-{}", a, b, b, c);
 
-                    println!("passes: {i} {}", history.len() - 1);
+                println!("passes: {i} {}", history.len() - 1);
 
-                    let during_one_pass = (c - b) as i64;
+                let during_one_pass = (c - b) as i64;
 
-                    let went = one_pass_size * (i) as i64;
-                    println!("Went: {}", went);
+                let went = one_pass_size * (i) as i64;
+                println!("Went: {}", went);
 
-                    let simulation_size = 1_000_000_000_000i64;
+                let simulation_size = 1_000_000_000_000i64;
 
-                    let passes_needed = simulation_size / one_pass_size;
-                    println!("Total passes needed {}", passes_needed);
-                    let passes_remaining = passes_needed - i;
-                    println!("Passes remaining {}", passes_remaining);
-                    let rocks_remaining = simulation_size - passes_needed * one_pass_size;
-                    println!("Rocks remaining after final pass {}", rocks_remaining);
+                let passes_needed = simulation_size / one_pass_size;
+                println!("Total passes needed {}", passes_needed);
+                let passes_remaining = passes_needed - i;
+                println!("Passes remaining {}", passes_remaining);
+                let rocks_remaining = simulation_size - passes_needed * one_pass_size;
+                println!("Rocks remaining after final pass {}", rocks_remaining);
 
-                    let shapes = Shape::all().cycle();
-                    for shape in shapes.take(rocks_remaining as usize) {
-                        let mut rock = Rock {
-                            y: (cavern.max_height + 4) as i64,
-                            x: 3,
-                            shape: *shape,
-                        };
+                let shapes = Shape::all().cycle();
+                for shape in shapes.take(rocks_remaining as usize) {
+                    let mut rock = Rock {
+                        y: (cavern.max_height + 4) as i64,
+                        x: 3,
+                        shape: *shape,
+                    };
+                    rock.move_with_the_wind(wind_chars.next().unwrap(), &cavern);
+                    while rock.move_down(&mut cavern) {
                         rock.move_with_the_wind(wind_chars.next().unwrap(), &cavern);
-                        while rock.move_down(&mut cavern) {
-                            rock.move_with_the_wind(wind_chars.next().unwrap(), &cavern);
-                        }
-                        cavern.resize();
                     }
-
-                    let result = passes_remaining * during_one_pass + cavern.max_height;
-                    println!("Result: {result}");
-                    return;
+                    cavern.resize();
                 }
+
+                let result = passes_remaining * during_one_pass + cavern.max_height;
+                println!("Result: {result}");
+                return;
             }
         }
     }
