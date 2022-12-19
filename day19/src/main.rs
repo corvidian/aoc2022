@@ -1,4 +1,6 @@
 use lazy_static::lazy_static;
+use log::{info, warn};
+use rayon::prelude::*;
 use regex::Regex;
 
 const MINUTES: u64 = 32;
@@ -12,6 +14,7 @@ struct Blueprint {
     obsidian_robot_clay_cost: u64,
     geode_robot_ore_cost: u64,
     geode_robot_obsidian_cost: u64,
+    max_ore_cost: u64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,14 +34,24 @@ impl From<&str> for Blueprint {
     fn from(line: &str) -> Self {
         let captures = RE.captures(line).expect("Invalid input line");
 
+        let id = captures[1].parse().unwrap();
+        let ore_robot_ore_cost = captures[2].parse().unwrap();
+        let clay_robot_ore_cost = captures[3].parse().unwrap();
+        let obsidian_robot_ore_cost = captures[4].parse().unwrap();
+        let obsidian_robot_clay_cost = captures[5].parse().unwrap();
+        let geode_robot_ore_cost = captures[6].parse().unwrap();
+        let geode_robot_obsidian_cost = captures[7].parse().unwrap();
+
         Blueprint {
-            id: captures[1].parse().unwrap(),
-            ore_robot_ore_cost: captures[2].parse().unwrap(),
-            clay_robot_ore_cost: captures[3].parse().unwrap(),
-            obsidian_robot_ore_cost: captures[4].parse().unwrap(),
-            obsidian_robot_clay_cost: captures[5].parse().unwrap(),
-            geode_robot_ore_cost: captures[6].parse().unwrap(),
-            geode_robot_obsidian_cost: captures[7].parse().unwrap(),
+            id,
+            ore_robot_ore_cost,
+            clay_robot_ore_cost,
+            obsidian_robot_ore_cost,
+            obsidian_robot_clay_cost,
+            geode_robot_ore_cost,
+            geode_robot_obsidian_cost,
+            max_ore_cost: clay_robot_ore_cost
+                .max(obsidian_robot_ore_cost.max(geode_robot_ore_cost)),
         }
     }
 }
@@ -53,51 +66,19 @@ static MAX_FROM_NEW_ROBOTS: [u64; 32] = [
     1540, 1771, 2024, 2300, 2600, 2925, 3276, 3654, 4060, 4495, 4960, 5456,
 ];
 
-fn main() {
-    let blueprints: Vec<_> = aoc::input_lines()
-        .map(|line| Blueprint::from(line.as_str()))
-        .take(3)
-        .collect();
-    for blueprint in &blueprints {
-        println!("{blueprint:?}")
-    }
-
-    for i in 0..MINUTES {
-        println!("{i}: {}", i * (i + 1) * (i + 2) / 6);
-    }
-
-    let weighted_sum: u64 = blueprints
-        .iter()
-        .map(|blueprint| {
-            let first_state = State {
-                minutes_passed: 0,
-                saved_ore: 0,
-                saved_clay: 0,
-                saved_obsidian: 0,
-                saved_geode: 0,
-                ore_robots: 1,
-                clay_robots: 0,
-                obsidian_robots: 0,
-                geode_robots: 0,
-            };
-            let mut best_found = 0;
-            let max_geodes = seek(&first_state, blueprint, &mut best_found);
-            println!("Blueprint {}, max geodes: {max_geodes}", blueprint.id);
-            max_geodes * blueprint.id
-        })
-        .sum();
-    println!("Part 1: {weighted_sum}");
-}
-
 fn seek(state: &State, blueprint: &Blueprint, best_found: &mut u64) -> u64 {
+    if state.saved_geode > *best_found {
+        found_best(state, blueprint, state.saved_geode, best_found);
+    }
+
     if state.minutes_passed == MINUTES {
         return state.saved_geode;
     }
 
-    if state.minutes_passed <= 8 {
-        println!(
+    if state.minutes_passed <= 10 {
+        info!(
             "Blueprint #{}, Best found: {best_found}, {state:?}",
-            blueprint.id
+            blueprint.id,
         );
     }
 
@@ -109,7 +90,6 @@ fn seek(state: &State, blueprint: &Blueprint, best_found: &mut u64) -> u64 {
             + MINUTES * state.geode_robots
             + MAX_FROM_NEW_ROBOTS[robot_time_remaining as usize]
     {
-        //println!("Pruned branch. {robot_time_remaining} {max_from_new_robots}");
         return 0;
     }
 
@@ -129,43 +109,89 @@ fn seek(state: &State, blueprint: &Blueprint, best_found: &mut u64) -> u64 {
         geode_robots: state.geode_robots,
     };
 
-    let mut max_geodes: u64 = seek(&new_state, blueprint, best_found);
-    *best_found = max_geodes.max(*best_found);
+    let mut max_geodes: u64 = 0;
 
-    if round_start_ore >= blueprint.ore_robot_ore_cost {
-        let mut build_state = new_state.clone();
-        build_state.saved_ore -= blueprint.ore_robot_ore_cost;
-        build_state.ore_robots += 1;
-        max_geodes = max_geodes.max(seek(&build_state, blueprint, best_found));
-        *best_found = max_geodes.max(*best_found);
+    if round_start_ore >= blueprint.geode_robot_ore_cost
+        && round_start_obsidian >= blueprint.geode_robot_obsidian_cost
+    {
+        let mut build_state = new_state;
+        build_state.saved_ore -= blueprint.geode_robot_ore_cost;
+        build_state.saved_obsidian -= blueprint.geode_robot_obsidian_cost;
+        build_state.geode_robots += 1;
+        return seek(&build_state, blueprint, best_found);
     }
-    if round_start_ore >= blueprint.clay_robot_ore_cost {
-        let mut build_state = new_state.clone();
-        build_state.saved_ore -= blueprint.clay_robot_ore_cost;
-        build_state.clay_robots += 1;
-        max_geodes = max_geodes.max(seek(&build_state, blueprint, best_found));
-        *best_found = max_geodes.max(*best_found);
-    }
-    if round_start_ore >= blueprint.obsidian_robot_ore_cost
+    if state.obsidian_robots < blueprint.geode_robot_obsidian_cost
+        && round_start_ore >= blueprint.obsidian_robot_ore_cost
         && round_start_clay >= blueprint.obsidian_robot_clay_cost
     {
-        let mut build_state = new_state.clone();
+        let mut build_state = new_state;
         build_state.saved_ore -= blueprint.obsidian_robot_ore_cost;
         build_state.saved_clay -= blueprint.obsidian_robot_clay_cost;
         build_state.obsidian_robots += 1;
         max_geodes = max_geodes.max(seek(&build_state, blueprint, best_found));
-        *best_found = max_geodes.max(*best_found);
     }
-    if round_start_ore >= blueprint.geode_robot_ore_cost
-        && round_start_obsidian >= blueprint.geode_robot_obsidian_cost
+    if state.clay_robots < blueprint.obsidian_robot_clay_cost
+        && round_start_ore >= blueprint.clay_robot_ore_cost
     {
-        let mut build_state = new_state.clone();
-        build_state.saved_ore -= blueprint.geode_robot_ore_cost;
-        build_state.saved_obsidian -= blueprint.geode_robot_obsidian_cost;
-        build_state.geode_robots += 1;
+        let mut build_state = new_state;
+        build_state.saved_ore -= blueprint.clay_robot_ore_cost;
+        build_state.clay_robots += 1;
         max_geodes = max_geodes.max(seek(&build_state, blueprint, best_found));
-        *best_found = max_geodes.max(*best_found);
     }
+    if state.ore_robots < blueprint.max_ore_cost && round_start_ore >= blueprint.ore_robot_ore_cost
+    {
+        let mut build_state = new_state;
+        build_state.saved_ore -= blueprint.ore_robot_ore_cost;
+        build_state.ore_robots += 1;
+        max_geodes = max_geodes.max(seek(&build_state, blueprint, best_found));
+    }
+    max_geodes = max_geodes.max(seek(&new_state, blueprint, best_found));
 
     max_geodes
+}
+
+fn found_best(state: &State, blueprint: &Blueprint, max_geodes: u64, best_found: &mut u64) {
+    *best_found = max_geodes.max(*best_found);
+    warn!(
+        "Blueprint #{}, Best found: {best_found}, {state:?}",
+        blueprint.id,
+    );
+}
+
+fn main() {
+    aoc::init_logging();
+
+    let blueprints: Vec<_> = aoc::input_lines()
+        .map(|line| Blueprint::from(line.as_str()))
+        .take(3)
+        .collect();
+    for blueprint in &blueprints {
+        info!("{blueprint:?}")
+    }
+
+    for i in 0..MINUTES {
+        info!("{i}: {}", i * (i + 1) * (i + 2) / 6);
+    }
+
+    let weighted_sum: u64 = blueprints
+        .par_iter()
+        .map(|blueprint| {
+            let first_state = State {
+                minutes_passed: 0,
+                saved_ore: 0,
+                saved_clay: 0,
+                saved_obsidian: 0,
+                saved_geode: 0,
+                ore_robots: 1,
+                clay_robots: 0,
+                obsidian_robots: 0,
+                geode_robots: 0,
+            };
+            let mut best_found = 0;
+            let max_geodes = seek(&first_state, blueprint, &mut best_found);
+            info!("Blueprint {}, max geodes: {max_geodes}", blueprint.id);
+            max_geodes
+        })
+        .product();
+    info!("Part 2: {weighted_sum}");
 }
