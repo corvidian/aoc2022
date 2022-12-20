@@ -1,79 +1,51 @@
-use std::fmt::Display;
-
-#[derive(Clone, Debug)]
-struct Item {
-    original_index: usize,
-    value: i64,
-}
-
-impl Item {
-    fn new(original_index: usize, value: i64) -> Item {
-        Item {
-            original_index,
-            value,
-        }
-    }
-}
-
-impl Display for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} -> {}", self.original_index, self.value))
-    }
-}
+use std::fmt::Debug;
 
 const DECRYPT_KEY: i64 = 811589153;
 
 fn main() {
     let mut file: Vec<_> = aoc::input_lines()
-        .enumerate()
-        .map(|(i, value)| Item::new(i, value.parse::<i64>().unwrap()))
+        .map(|value| value.parse::<i64>().unwrap())
         .collect();
 
-    let mut part1_buffer = file.clone();
-    mix(&mut part1_buffer);
-    result(&part1_buffer);
+    let mut indexes = (0..file.len()).collect();
+    mix(&file, &mut indexes);
+    result("Part 1", &file, &indexes);
 
-    for mut item in &mut file {
-        item.value *= DECRYPT_KEY
+    for item in &mut file {
+        *item *= DECRYPT_KEY
     }
 
+    let mut indexes = (0..file.len()).collect();
     for _ in 0..10 {
-        mix(&mut file)
+        mix(&file, &mut indexes)
     }
-    result(&file);
+    result("Part 2", &file, &indexes);
 }
 
-fn result(buffer: &Vec<Item>) {
-    let pos_zero = buffer.iter().position(|a| a.value == 0).unwrap();
-    let thousand = &buffer[(pos_zero + 1000).rem_euclid(buffer.len())];
-    let two_thousand = &buffer[(pos_zero + 2000).rem_euclid(buffer.len())];
-    let three_thousand = &buffer[(pos_zero + 3000).rem_euclid(buffer.len())];
+fn result(part: &str, file: &[i64], indexes: &[usize]) {
+    let pos_zero = indexes.iter().position(|a| file[*a] == 0).unwrap();
+    let thousand = file[indexes[(pos_zero + 1000).rem_euclid(file.len())]];
+    let two_thousand = file[indexes[(pos_zero + 2000).rem_euclid(file.len())]];
+    let three_thousand = file[indexes[(pos_zero + 3000).rem_euclid(file.len())]];
 
-    println!(
-        "{} + {} + {} = {}",
-        thousand,
-        two_thousand,
-        three_thousand,
-        thousand.value + two_thousand.value + three_thousand.value
-    );
+    println!("{part}: {}", thousand + two_thousand + three_thousand);
 }
 
-fn mix(buffer: &mut Vec<Item>) {
-    for i in 0..buffer.len() {
-        let i = buffer.iter().position(|a| a.original_index == i).unwrap();
-        shift(buffer, i);
+fn mix(file: &[i64], indexes: &mut Vec<usize>) {
+    for i in 0..file.len() {
+        let index = indexes.iter().position(|a| *a == i).unwrap();
+        shift(indexes, index, file[indexes[index]]);
     }
 }
 
-fn shift(buffer: &mut Vec<Item>, i: usize) {
-    let n = buffer.len();
-    let moves = buffer[i].value.rem_euclid(n as i64 - 1) as usize;
-    let end = (i + moves).rem_euclid(n) + 1;
-    if i < end {
-        buffer[i..end].rotate_left(1)
-    }
-    if i > end {
-        buffer[end..=i].rotate_right(1);
+fn shift<T: Debug>(indexes: &mut Vec<T>, i: usize, amount: i64) {
+    let n = indexes.len();
+    let moves = amount.rem_euclid(n as i64 - 1) as usize;
+    let target = (i + moves).rem_euclid(n) + 1;
+    if i < target {
+        indexes[i..target].rotate_left(1)
+    } else if i > target {
+        indexes[target..=i].rotate_right(1);
     }
 }
 
@@ -90,9 +62,9 @@ mod tests {
     #[case(vec![1, 2, -2, -3, 0, 3, 4],2,vec![1, 2, -3, 0, 3, 4, -2])]
     #[case(vec![1, 2, -3, 0, 3, 4, -2],3,vec![1, 2, -3, 0, 3, 4, -2])]
     #[case(vec![1, 2, -3, 0, 3, 4, -2],5,vec![1, 2, -3, 4, 0, 3, -2])]
-    fn case1(#[case] input: Vec<i64>, #[case] index: usize, #[case] output: Vec<i64>) {
-        let mut buffer = input.iter().map(|i| Item::new(0, *i)).collect();
-        shift(&mut buffer, index);
-        assert_eq!(buffer.iter().map(|i| i.value).collect::<Vec<_>>(), output)
+    fn case1(#[case] mut input: Vec<i64>, #[case] index: usize, #[case] output: Vec<i64>) {
+        let amount = input[index];
+        shift(&mut input, index, amount);
+        assert_eq!(input, output)
     }
 }
