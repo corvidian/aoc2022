@@ -37,9 +37,9 @@ impl fmt::Debug for Monkey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use fmt::Write;
 
-        let faces = ['🙈', '🙉', '🙊'];
-        let i = fastrand::usize(..faces.len());
-        f.write_char(faces[i])
+        static FACES:[char;3] = ['🙈', '🙉', '🙊'];
+        let i = fastrand::usize(..FACES.len());
+        f.write_char(FACES[i])
     }
 }
 
