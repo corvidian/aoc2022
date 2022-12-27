@@ -1,37 +1,36 @@
-use intset::ShrinkSet;
-use std::process::exit;
+#![feature(slice_as_chunks)]
 
-type Sudoku = Vec<Vec<Option<usize>>>;
+use intset::ShrinkSet;
+
+type Sudoku = [[Option<usize>; 9]];
 
 fn main() {
-    let mut sudoku = aoc::input_lines()
-        .take(9)
-        .map(|line| {
-            line.split(',')
-                .map(|section| {
-                    if let Ok(value) = section.parse::<usize>() {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<Option<usize>>>()
-        })
-        .take(9)
-        .collect::<Vec<_>>();
+    aoc::input_lines()
+        .filter(|line| !line.starts_with('#'))
+        .take(1000)
+        .for_each(|line| {
+            let mut all = line
+                .chars()
+                .map(|cell| cell.to_digit(10).map(|value| value as usize))
+                .collect::<Vec<_>>();
 
-    visualize(&sudoku);
-
-    step(&mut sudoku, 0, 0);
+            unsafe { solve(all.as_chunks_unchecked_mut::<9>()) }
+        });
 }
 
-fn visualize(sudoku: &Sudoku) {
+fn solve(sudoku: &mut Sudoku) {
+    //_visualize(sudoku);
+
+    step(sudoku, 0, 0);
+}
+
+fn _visualize(sudoku: &Sudoku) {
     println!("------------");
     for chunk in sudoku.chunks(3) {
         for row in chunk {
             for chunk in row.chunks(3) {
-                for ele in chunk {
-                    if let Some(value) = ele {
+                for cell in chunk {
+                    if let Some(value) = cell {
                         print!("{value}");
                     } else {
                         print!(" ");
@@ -55,17 +54,16 @@ fn next(y: usize, x: usize) -> (usize, usize) {
     }
 }
 
-fn step(sudoku: &mut Sudoku, row: usize, column: usize) {
+fn step(sudoku: &mut Sudoku, row: usize, column: usize) -> bool {
     if row > 8 {
-        visualize(sudoku);
-        exit(0);
+        //_visualize(sudoku);
+        return true;
     }
 
     let (next_y, next_x) = next(row, column);
 
     if sudoku[row][column].is_some() {
-        step(sudoku, next_y, next_x);
-        return;
+        return step(sudoku, next_y, next_x);
     }
 
     let mut candidates = ShrinkSet::new(10);
@@ -76,14 +74,17 @@ fn step(sudoku: &mut Sudoku, row: usize, column: usize) {
     check_block(sudoku, row, column, &mut candidates);
 
     if candidates.len() == 0 {
-        return;
+        return false;
     }
 
     for candidate in candidates.iter() {
         sudoku[row][column] = Some(*candidate);
-        step(sudoku, next_y, next_x);
+        if step(sudoku, next_y, next_x) {
+            return true;
+        }
         sudoku[row][column] = None;
     }
+    false
 }
 
 fn check_row(sudoku: &Sudoku, row: usize, candidates: &mut ShrinkSet) {
@@ -99,11 +100,20 @@ fn check_column(sudoku: &Sudoku, x: usize, candidates: &mut ShrinkSet) {
 }
 
 fn check_block(sudoku: &Sudoku, y: usize, x: usize, candidates: &mut ShrinkSet) {
-    let y = y / 3 * 3;
-    let x = x / 3 * 3;
+    let y = get_chunk_start(y);
+    let x = get_chunk_start(x);
     for row in sudoku.iter().skip(y).take(3) {
         for value in row.iter().skip(x).take(3).flatten() {
             candidates.remove(*value);
         }
+    }
+}
+
+#[inline(always)]
+fn get_chunk_start(coord: usize) -> usize {
+    match coord {
+        x if x < 3 => 0,
+        x if x < 6 => 3,
+        _ => 6,
     }
 }
