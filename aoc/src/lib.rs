@@ -1,35 +1,21 @@
-use simplelog::*;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-pub fn init_logging() {
-    fs::create_dir_all("target/log").expect("Cannot create log directory");
-    let filename = get_filename();
-    let filename = filename.split_once('.').unwrap().0;
-    let mut i = 1;
-    while Path::new(&format!("target/log/{filename}_{i}.log")).exists() {
-        i += 1;
-    }
-    let config = ConfigBuilder::new()
-        .set_time_offset_to_local()
-        .expect("Local timezone not found")
-        .build();
+#[cfg(feature = "log")]
+pub mod log;
 
-    CombinedLogger::init(vec![
-        TermLogger::new(
-            LevelFilter::Info,
-            config.clone(),
-            TerminalMode::Mixed,
-            ColorChoice::Auto,
-        ),
-        WriteLogger::new(
-            LevelFilter::Info,
-            config,
-            fs::File::create(format!("target/log/{filename}_{i}.log")).unwrap(),
-        ),
-    ])
-    .unwrap();
+#[cfg(feature = "log")]
+pub fn init_logging() {
+    log::init_logging(log::LevelFilter::Info, log::LevelFilter::Debug)
+}
+
+#[cfg(not(feature = "log"))]
+pub mod nolog;
+
+#[cfg(not(feature = "log"))]
+pub fn init_logging() {
+    nolog::init().expect("Logger not initialized");
 }
 
 pub fn read_input_lines() -> Vec<String> {

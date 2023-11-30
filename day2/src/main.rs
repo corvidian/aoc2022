@@ -1,7 +1,10 @@
+use aoc::input_lines;
+use log::info;
 use std::collections::HashMap;
-use aoc::read_input_lines;
 
 fn main() {
+    aoc::init_logging();
+
     let game_points = HashMap::from([
         ("A X".to_string(), (4, 3)),
         ("B X".to_string(), (1, 1)),
@@ -14,11 +17,10 @@ fn main() {
         ("C Z".to_string(), (6, 7)),
     ]);
 
-    let sums: (i32, i32) = read_input_lines()
-        .iter()
-        .map(|line| game_points[line])
+    let sums: (i32, i32) = input_lines()
+        .map(|line| game_points[&line])
         .reduce(|acc, x| (acc.0 + x.0, acc.1 + x.1))
         .expect("Empty input file");
-    println!("Part 1 Sum: {}", sums.0);
-    println!("Part 2 Sum: {}", sums.1);
+    info!("Part 1 Sum: {}", sums.0);
+    info!("Part 2 Sum: {}", sums.1);
 }

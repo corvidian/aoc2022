@@ -1,20 +1,18 @@
 use aoc::read_input_lines;
+use log::{debug, info};
 use std::collections::HashSet;
 
 fn main() {
-    let sum: u32 = read_input_lines()
-        .iter()
-        .map(|line| check_compartments(line))
-        .sum();
+    aoc::init_logging();
 
-    println!("Part1: {sum}");
+    let lines = read_input_lines();
+    let sum: u32 = lines.iter().map(|line| check_compartments(line)).sum();
 
-    let sum: u32 = read_input_lines()
-        .chunks(3)
-        .map(|group| find_common_item(group))
-        .sum();
+    info!("Part1: {sum}");
 
-    println!("Part2: {sum}");
+    let sum: u32 = lines.chunks(3).map(find_common_item).sum();
+
+    info!("Part2: {sum}");
 }
 
 fn find_common_item(group: &[String]) -> u32 {
@@ -23,8 +21,8 @@ fn find_common_item(group: &[String]) -> u32 {
         .map(|sack| sack.chars().collect::<HashSet<char>>())
         .reduce(|a, b| a.intersection(&b).copied().collect::<HashSet<char>>())
         .unwrap();
-        let priority = intersection.iter().map(|c| priority(*c)).sum();
-    println!("{intersection:?} {priority}");
+    let priority = intersection.iter().map(|c| priority(*c)).sum();
+    debug!("{intersection:?} {priority}");
     priority
 }
 
@@ -40,11 +38,11 @@ fn check_compartments(rugsack: &str) -> u32 {
     let second_chars: HashSet<char> = second.chars().collect();
     let common = first_chars.intersection(&second_chars);
 
-    println!("{rugsack} {length} {first} {second} {common:?}");
+    debug!("{rugsack} {length} {first} {second} {common:?}");
 
     let sum: u32 = common.map(|c| priority(*c)).sum();
 
-    println!("{sum:?}");
+    debug!("{sum:?}");
     sum
 }
 

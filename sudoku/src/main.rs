@@ -3,6 +3,7 @@
 use intset::ShrinkSet;
 
 type Sudoku = [[Option<usize>; 9]];
+type Candidates = ShrinkSet;
 
 fn main() {
     aoc::input_lines()
@@ -87,19 +88,19 @@ fn step(sudoku: &mut Sudoku, row: usize, column: usize) -> bool {
     false
 }
 
-fn check_row(sudoku: &Sudoku, row: usize, candidates: &mut ShrinkSet) {
+fn check_row(sudoku: &Sudoku, row: usize, candidates: &mut Candidates) {
     for value in sudoku[row].iter().flatten() {
         candidates.remove(*value);
     }
 }
 
-fn check_column(sudoku: &Sudoku, x: usize, candidates: &mut ShrinkSet) {
+fn check_column(sudoku: &Sudoku, x: usize, candidates: &mut Candidates) {
     for value in sudoku.iter().filter_map(|row| row[x]) {
         candidates.remove(value);
     }
 }
 
-fn check_block(sudoku: &Sudoku, y: usize, x: usize, candidates: &mut ShrinkSet) {
+fn check_block(sudoku: &Sudoku, y: usize, x: usize, candidates: &mut Candidates) {
     let y = get_chunk_start(y);
     let x = get_chunk_start(x);
     for row in sudoku.iter().skip(y).take(3) {
